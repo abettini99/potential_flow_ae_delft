@@ -24,10 +24,14 @@ SLIDER_RE = re.compile(r"\s*#\s*page:slider\s*\((.*)\)\s*")  # "# page:slider (0
 ASSIGN_RE = re.compile(r"\s*([A-Za-z_]\w*)\s*=\s*(.+?)\s*")  # "Vinf = 1" on the next line
 
 
-def _show(fig, *args, **kwargs):
-    """Replaces Plotly's fig.show(): keep the figure instead of opening it."""
+def _show(fig, *args, config=None, **kwargs):
+    """Replaces Plotly's fig.show(): keep the figure instead of opening it.
+    fig.show(config={"displayModeBar": False}) passes that config on to the page."""
     if _outputs is not None:
-        _outputs.append({"type": "plot", "figure": json.loads(fig.to_json())})
+        figure = json.loads(fig.to_json())
+        if config:
+            figure["config"] = config
+        _outputs.append({"type": "plot", "figure": figure})
 
 
 def find_sliders(src):

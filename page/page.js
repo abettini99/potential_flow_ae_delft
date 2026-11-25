@@ -14,7 +14,9 @@
   function draw(div, fig) {
     var layout = Object.assign({}, fig.layout, { autosize: true });
     delete layout.width; // fit the page instead
-    Plotly.react(div, fig.data, layout, { responsive: true, displaylogo: false });
+    // fig.show(config=...) in the notebook can change these, e.g. {"displayModeBar": False}
+    var config = Object.assign({ responsive: true, displaylogo: false }, fig.config);
+    return Plotly.react(div, fig.data, layout, config);
   }
 
   function pre(cls, text) {
@@ -24,20 +26,26 @@
     return p;
   }
 
-  // Replace cell `i`'s outputs with new ones from the worker.
+  // Replace cell `i`'s outputs with new ones from the worker, without moving the
+  // page: the box keeps its height until the new plots are drawn, and existing
+  // plots are updated in place rather than removed and drawn again.
   function showOutputs(i, outputs) {
     var box = cellEl(i).querySelector(".outputs");
-    box.innerHTML = "";
+    var plots = Array.from(box.querySelectorAll(".plot")); // to reuse
+    box.style.minHeight = box.offsetHeight + "px";
+    box.replaceChildren();
+    var drawing = [];
     outputs.forEach(function (out) {
       if (out.type === "text") box.appendChild(pre("output", out.text));
       if (out.type === "error") box.appendChild(pre("output error", out.text));
       if (out.type === "plot") {
-        var div = document.createElement("div");
+        var div = plots.shift() || document.createElement("div");
         div.className = "plot";
         box.appendChild(div);
-        draw(div, out.figure);
+        drawing.push(draw(div, out.figure));
       }
     });
+    Promise.all(drawing).finally(function () { box.style.minHeight = ""; });
   }
 
   // ---- what to run --------------------------------------------------------------
@@ -102,6 +110,9 @@
         clearTimeout(timer);
         timer = setTimeout(function () { rerun(i, Number(block.dataset.rerun)); }, WAIT);
       });
+      // Let go of the slider after dragging it, so the browser has no reason to
+      // scroll back to it (Firefox) when the outputs update.
+      s.addEventListener("pointerup", function () { s.blur(); });
     });
     block.classList.remove("loading");
   }
