@@ -143,6 +143,13 @@
     area.addEventListener("input", function () { fitHeight(area); });
   });
 
+  // Plots in a folded section were drawn without room; size them when it opens.
+  document.querySelectorAll("details.section").forEach(function (d) {
+    d.addEventListener("toggle", function () {
+      if (d.open) d.querySelectorAll(".plot").forEach(function (p) { if (p._fullLayout) Plotly.Plots.resize(p); });
+    });
+  });
+
   var sliders = document.querySelectorAll(".sliders");
   var editors = document.querySelectorAll(".editor");
   if (!sliders.length && !editors.length) return; // nothing interactive: no need for Python

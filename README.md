@@ -25,6 +25,8 @@ Code is shown on the page by default. Marker lines at the top of a code cell cha
 
 **Hiding part of a cell.** Lines between `# page:hide-from` and `# page:hide-to` are left off the page but still run. Without a `# page:hide-to`, it hides to the end of the cell. (Editable cells always show all their code.)
 
+**Folding sections.** Each markdown heading (`## ...`) on the page can be clicked to fold everything below it (text, code, sliders and plots) up to the next heading of the same or a higher level. Sections start open; put `<!-- page:closed -->` in a heading's cell to start it folded.
+
 **Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. When a slider stops moving (for 0.15 s), its value goes into that line and the cell reruns, along with every cell below it. `# page:rerun=2` at the top of the cell reruns only the next 2 cells.
 
 ```python
