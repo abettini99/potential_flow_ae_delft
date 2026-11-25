@@ -26,7 +26,7 @@ jobs:
           cp README.md content
           jupyter lite build --contents content --output-dir dist
           # Landing page in the homepage's style; replaces JupyterLite's redirect page
-          cp -r site/. dist/
+          cp -r landing/. dist/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,74 @@
+:root {
+  --bg: #ffffff;
+  --text: #222222;
+  --muted: #666666;
+  --link: #0b5fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111111;
+    --text: #eeeeee;
+    --muted: #999999;
+    --link: #6ea8ff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+main, footer {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+main { padding-top: 4rem; }
+
+h1 { margin-bottom: 0; }
+h2 { margin-top: 2.5rem; font-size: 1.2rem; }
+
+.tagline { color: var(--muted); margin-top: 0.25rem; }
+
+a { color: var(--link); }
+
+.links { padding-left: 1.2rem; }
+
+footer {
+  margin-top: 4rem;
+  padding-bottom: 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.projects { list-style: none; padding: 0; }
+.projects li { margin-bottom: 1.25rem; }
+.projects p { margin: 0.25rem 0 0; color: var(--muted); }
+
+.projects .button {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--link);
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.projects .button:hover { background: var(--link); color: var(--bg); }
+
+.button {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--link);
+  border-radius: 4px;
+  text-decoration: none;
+}
+.button:hover { background: var(--link); color: var(--bg); }
