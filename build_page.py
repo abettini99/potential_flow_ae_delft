@@ -18,8 +18,7 @@ What readers see is set by comments in a code cell. On its first line:
                                cells when a slider moves (default: all below)
 Anywhere in a cell (the hidden code still runs):
   # page:hide-from             hide the code from here...
-  # page:hide-to               ...to here; without a hide-to, hiding goes on
-                               into the next cells until one has a hide-to
+  # page:hide-to               ...to here (without it: to the end of the cell)
 Anywhere in a cell, a slider for the variable on the next line:
   # page:slider (0.5, 5.0, 0.1)
   Vinf = 1                     (min, max, step); the value is where it starts
@@ -91,10 +90,9 @@ def read_sliders(src):
     return sliders
 
 
-def shown_code(src, hiding):
-    """The cell's code without the lines between "# page:hide-from" and "# page:hide-to".
-    `hiding` says whether a hide-from in an earlier cell is still open; returns (code, hiding)."""
-    shown = []
+def shown_code(src):
+    """The cell's code without the lines between "# page:hide-from" and "# page:hide-to"."""
+    shown, hiding = [], False
     for line in src.splitlines():
         marker = line.replace(" ", "").strip()
         if marker == "#page:hide-from":
@@ -103,7 +101,7 @@ def shown_code(src, hiding):
             hiding = False
         elif not hiding:
             shown.append(line)
-    return live.clean("\n".join(shown)).strip(), hiding
+    return live.clean("\n".join(shown)).strip()
 
 
 # ---- HTML pieces ---------------------------------------------------------------
@@ -148,7 +146,6 @@ def html_sliders(sliders, rerun):
 def build(nb):
     ns = {"__name__": "__main__"}
     parts, cells, title = [], [], None
-    hiding = False  # inside a "# page:hide-from" that goes on across cells
     for cell in nb.cells:
         if cell.cell_type == "markdown":
             src = cell.source.strip()
@@ -165,7 +162,7 @@ def build(nb):
         opts = read_first_line(cell.source)
         sliders = read_sliders(cell.source)
         outputs = live.run_cell(cell.source, ns, {k: v[3] for k, v in sliders.items()})
-        code, hiding = shown_code(cell.source, hiding)
+        code = shown_code(cell.source)
 
         pieces = []
         if sliders:
