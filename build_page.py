@@ -8,7 +8,7 @@ How it works:
   2. The page (page/page.js) then loads Python in the browser and runs the same
      cells again, so sliders and editable cells can rerun code live.
 
-What readers see is set by comments in a code cell. On its first line:
+What readers see is set by comments in a code cell. At its top (several can be stacked):
   (nothing)                    code shown, then its output
   # page:hide                  output only, no code
   # page:fold                  code folded behind a "Code" toggle
@@ -53,23 +53,25 @@ ALL = 1_000_000  # "rerun=all"
 # ---- reading a cell's markers -------------------------------------------------
 
 def read_first_line(src):
-    """What the first line asks for, e.g. "# page:edit rerun=2" -> {"edit": True, "rerun": 2}."""
-    lines = src.strip().splitlines()
-    first = lines[0].strip() if lines else ""
-    words = first.lstrip("#").strip().removeprefix("page:").split()
-    if not first.startswith("#") or not words or words[0] == "slider":
-        return {}
-    if not all(w in ("hide", "fold", "edit") or w.startswith("rerun=") for w in words):
-        return {}  # an ordinary comment
+    """What the marker lines at the top of a cell ask for, e.g. "# page:edit rerun=2"
+    -> {"edit": True, "rerun": 2}. Several can be stacked: "# page:rerun=1" then "# page:hide"."""
     opts = {}
-    for word in words:
-        if word.startswith("rerun="):
-            n = word[len("rerun="):]
-            if not (n == "all" or n.isdigit()):
-                raise SystemExit(f"'{first}': rerun= needs a number or 'all'")
-            opts["rerun"] = ALL if n == "all" else int(n)
-        else:
-            opts[word] = True
+    for line in src.strip().splitlines():
+        line = line.strip()
+        words = line.lstrip("#").strip().removeprefix("page:").split()
+        if not line:
+            continue
+        if (not line.startswith("#") or not words or words[0] == "slider"
+                or not all(w in ("hide", "fold", "edit") or w.startswith("rerun=") for w in words)):
+            break  # code, a slider or an ordinary comment: the markers are over
+        for word in words:
+            if word.startswith("rerun="):
+                n = word[len("rerun="):]
+                if not (n == "all" or n.isdigit()):
+                    raise SystemExit(f"'{line}': rerun= needs a number or 'all'")
+                opts["rerun"] = ALL if n == "all" else int(n)
+            else:
+                opts[word] = True
     return opts
 
 
