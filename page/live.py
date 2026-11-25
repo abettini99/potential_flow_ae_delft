@@ -151,7 +151,8 @@ def strip_magics(src):
     """Drop IPython magics/shell lines and Colab "# @title" form headers."""
     def keep(line):
         s = line.lstrip()
-        return not s.startswith(("%", "!", "#@title", "# @title", "#@markdown", "# @markdown"))
+        return not s.startswith(("%", "!", "#@title", "# @title", "#@markdown", "# @markdown",
+                                 "# page:", "#page:"))
     return "\n".join(l for l in src.splitlines() if keep(l))
 
 
@@ -180,6 +181,26 @@ def run_cell(src, ns):
     if buf.getvalue():
         outs.insert(0, {"type": "text", "text": buf.getvalue()})
     return outs
+
+
+def run_cell_json(src, ns):
+    """Page entry point for an edited cell: run it and return its outputs as JSON.
+
+    Errors come back as an "error" output instead of raising. Slider blocks get
+    their first figure here, since nothing drew them at build time."""
+    import traceback
+    try:
+        outs = run_cell(src, ns)
+    except Exception:
+        etype, err, tb = sys.exc_info()
+        # show only the frames from the reader's own code
+        frames = [f for f in traceback.extract_tb(tb) if f.filename == "<cell>"]
+        text = "".join(traceback.format_list(frames) + traceback.format_exception_only(etype, err))
+        outs = [{"type": "error", "text": text.strip()}]
+    for o in outs:
+        if o["type"] == "live" and "figure" not in o:
+            o["figure"] = call(o["id"], {c["name"]: c["value"] for c in o["controls"]})
+    return json.dumps(outs)
 
 
 def install():
