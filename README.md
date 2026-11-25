@@ -13,7 +13,7 @@ Every push to `main` rebuilds both from `content/potential_flow.ipynb` (`.github
 
 Make plots with Plotly (`fig.show()`, or a figure on a cell's last line). Printed text shows too.
 
-Code is shown on the page by default. The first line of a code cell can change that:
+Code is shown on the page by default. Marker lines at the top of a code cell change that (stack several, or put them on one line: `# page:hide rerun=1`):
 
 | First line | On the page |
 |---|---|
@@ -25,7 +25,7 @@ Code is shown on the page by default. The first line of a code cell can change t
 
 **Hiding part of a cell.** Lines between `# page:hide-from` and `# page:hide-to` are left off the page but still run. Without a `# page:hide-to`, it hides to the end of the cell. (Editable cells always show all their code.)
 
-**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. Moving a slider puts its value in that line and reruns the cell and every cell below it; `# page:rerun=2` on the cell's first line reruns only the next 2.
+**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. When a slider stops moving (for a quarter of a second), its value goes into that line and the cell reruns, along with every cell below it. `# page:rerun=2` at the top of the cell reruns only the next 2 cells.
 
 ```python
 # page:rerun=2
@@ -37,7 +37,7 @@ Vinf = 1
 angle = 0
 ```
 
-A cell has sliders or an editor, not both. All of these are comments, so the notebook runs unchanged in Colab or Jupyter.
+`# page:hide` on a slider cell shows only the sliders. A cell has sliders or an editor, not both. All of these are comments, so the notebook runs unchanged in Colab or Jupyter.
 
 ## How it works
 

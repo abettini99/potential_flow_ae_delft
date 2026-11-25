@@ -68,23 +68,22 @@
     return values;
   }
 
-  // While Python is busy, remember only that another run is wanted.
-  function whenFree(fn) {
-    var busy = false, again = false;
-    return function go() {
-      if (busy) { again = true; return; }
-      busy = true;
-      requestAnimationFrame(function () { // let the slider move on screen first
+  // Run `fn` once the sliders have been still for WAIT ms, so dragging stays smooth
+  // and Python only recalculates for where the slider stops.
+  var WAIT = 250;
+  function whenStill(fn) {
+    var timer = null;
+    return function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
         try { fn(); } catch (e) { console.error(e); }
-        busy = false;
-        if (again) { again = false; go(); }
-      });
+      }, WAIT);
     };
   }
 
   function startSliders(block) {
     var i = cellNumber(block);
-    var update = whenFree(function () { runFrom(i, Number(block.dataset.rerun)); });
+    var update = whenStill(function () { runFrom(i, Number(block.dataset.rerun)); });
     block.querySelectorAll("input").forEach(function (s) {
       s.disabled = false;
       s.addEventListener("input", function () {
