@@ -48,4 +48,6 @@ Three small files in this repo, plus the workflow:
 - `page/page.js` draws the plots, then loads Python in the browser ([Pyodide](https://pyodide.org)) and runs the cells again so that sliders and Run buttons can rerun code. Until that has loaded, sliders and editors show "Loading Python".
 - `page/template.html` and `page/style.css` are the page's frame and look (copied from the homepage).
 
+**New packages.** If the notebook imports a new package (like `scipy`), add it to `requirements.txt` so the build can run the notebook. The page in the browser loads it by itself.
+
 To preview locally: `pip install -r requirements.txt && python build_page.py dist/index.html && python -m http.server -d dist`, then open http://localhost:8000.
