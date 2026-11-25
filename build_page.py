@@ -1,23 +1,34 @@
-"""Turn content/potential_flow.ipynb into a web page in the homepage's style.
+"""Turn content/potential_flow.ipynb into the site's front page.
 
     python build_page.py dist/index.html
 
-The notebook's code is run here first, so the page opens with every plot already
-drawn. The page then loads Python in the browser (Pyodide) and runs the same
-code again, after which the sliders call the notebook's own functions live.
+How it works:
+  1. Every code cell is run here, in order (page/live.py), so the page opens
+     with all text, maths and plots already in place.
+  2. The page (page/page.js) then loads Python in the browser and runs the same
+     cells again, so sliders and editable cells can rerun code live.
 
-Code is shown by default. A first line "# page:<word>" changes that:
-  # page:hide   run the cell but don't show its code (output still shows)
-  # page:fold   show the code folded behind a "Code" toggle
-  # page:edit   readers can edit the code and run it on the page
-Notebook tags still work: remove-cell (show nothing), remove-input (= hide).
-Colab's "Hide code" counts as hide.
-
-Interactive parts are written with ipywidgets.interact and Plotly, see
-page/live.py for what is supported.
+What readers see is set by comments in a code cell. On its first line:
+  (nothing)                    code shown, then its output
+  # page:hide                  output only, no code
+  # page:fold                  code folded behind a "Code" toggle
+  # page:edit                  code in an editor with a Run button
+  # page:edit rerun=2          ...Run also reruns the next 2 code cells
+  # page:rerun=2               for a cell with sliders: rerun only the next 2
+                               cells when a slider moves (default: all below)
+Anywhere in a cell (the hidden code still runs):
+  # page:hide-from             hide the code from here...
+  # page:hide-to               ...to here (without it: to the end of the cell)
+Anywhere in a cell, a slider for the variable on the next line:
+  # page:slider (0.5, 5.0, 0.1)
+  Vinf = 1                     (min, max, step); the value is where it starts
+Outputs are anything printed and Plotly figures (fig.show() or a figure on the
+last line).
 """
+import ast
 import html
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -35,124 +46,155 @@ import live  # noqa: E402
 NOTEBOOK = ROOT / "content" / "potential_flow.ipynb"
 NOTEBOOK_URL = "notebooks/index.html?path=potential_flow.ipynb"
 PYODIDE_VERSION = "314.0.7"
+ALL = 1_000_000  # "rerun=all"
 
 
-def script_json(obj):
-    return json.dumps(obj).replace("</", "<\\/")
 
+# ---- reading a cell's markers -------------------------------------------------
 
-def render_live(out):
-    rows = []
-    for c in out["controls"]:
-        name = html.escape(c["name"])
-        label = html.escape(str(c["label"]))
-        if c["kind"] == "slider":
-            field = (f'<input type="range" name="{name}" min="{c["min"]}" max="{c["max"]}" '
-                     f'step="{c["step"]}" value="{c["value"]}" disabled>'
-                     f'<output>{c["value"]}</output>')
-        elif c["kind"] == "dropdown":
-            opts = "".join(
-                f'<option{" selected" if o == c["value"] else ""}>{html.escape(str(o))}</option>'
-                for o in c["choices"])
-            field = f'<select name="{name}" disabled>{opts}</select>'
+def read_first_line(src):
+    """What the first line asks for, e.g. "# page:edit rerun=2" -> {"edit": True, "rerun": 2}."""
+    lines = src.strip().splitlines()
+    first = lines[0].strip() if lines else ""
+    words = first.lstrip("#").strip().removeprefix("page:").split()
+    if not first.startswith("#") or not words or words[0] == "slider":
+        return {}
+    if not all(w in ("hide", "fold", "edit") or w.startswith("rerun=") for w in words):
+        return {}  # an ordinary comment
+    opts = {}
+    for word in words:
+        if word.startswith("rerun="):
+            n = word[len("rerun="):]
+            if not (n == "all" or n.isdigit()):
+                raise SystemExit(f"'{first}': rerun= needs a number or 'all'")
+            opts["rerun"] = ALL if n == "all" else int(n)
         else:
-            checked = " checked" if c["value"] else ""
-            field = f'<input type="checkbox" name="{name}"{checked} disabled>'
-        rows.append(f'<label class="control"><span>{label}</span>{field}</label>')
-    fig = script_json(out["figure"]) if out["figure"] else "null"
-    return (
-        f'<div class="live loading" data-live="{out["id"]}">'
-        '<div class="controls">' + "".join(rows) +
-        '<span class="status" title="Loading Python so the sliders work">'
-        '<span class="spinner"></span>Loading</span></div>'
-        f'<div class="plot"></div><script type="application/json" class="fig">{fig}</script></div>'
-    )
+            opts[word] = True
+    return opts
 
 
-def render_output(out):
-    if out["type"] == "text":
-        return f'<pre class="output">{html.escape(out["text"])}</pre>'
-    if out["type"] == "plot":
-        return f'<div class="plot"></div><script type="application/json" class="fig">{script_json(out["figure"])}</script>'
-    if out["type"] == "live":
-        return render_live(out)
-    return ""
+def read_sliders(src):
+    """{name: (min, max, step, start value)} for the cell's "# page:slider" lines."""
+    try:
+        found = live.find_sliders(src)
+    except (ValueError, SyntaxError) as err:
+        raise SystemExit(f"slider: {err}")
+    sliders = {}
+    for name, (limits, value, _) in found.items():
+        try:
+            lo, hi, step = limits
+            value = ast.literal_eval(value)
+        except (ValueError, TypeError, SyntaxError):
+            raise SystemExit(f"slider {name}: write '# page:slider (min, max, step)' above '{name} = number'")
+        sliders[name] = (lo, hi, step, min(max(value, lo), hi))  # start inside the range
+    return sliders
 
 
-def page_marks(src):
-    """Words from a first line like "# page:edit" (several: "# page:edit fold")."""
-    first = src.lstrip().split("\n", 1)[0].strip().lower().replace("# ", "#", 1)
-    return set(first[len("#page:"):].replace(",", " ").split()) if first.startswith("#page:") else set()
+def shown_code(src):
+    """The cell's code without the lines between "# page:hide-from" and "# page:hide-to"."""
+    shown, hiding = [], False
+    for line in src.splitlines():
+        marker = line.replace(" ", "").strip()
+        if marker == "#page:hide-from":
+            hiding = True
+        elif marker == "#page:hide-to":
+            hiding = False
+        elif not hiding:
+            shown.append(line)
+    return live.clean("\n".join(shown)).strip()
 
+
+# ---- HTML pieces ---------------------------------------------------------------
+
+LOADING = '<span class="status"><span class="spinner"></span>Loading Python</span>'
+
+
+def html_outputs(outputs):
+    parts = []
+    for out in outputs:
+        if out["type"] == "text":
+            parts.append(f'<pre class="output">{html.escape(out["text"])}</pre>')
+        elif out["type"] == "plot":
+            fig = json.dumps(out["figure"]).replace("</", "<\\/")
+            parts.append(f'<div class="plot"></div><script type="application/json" class="fig">{fig}</script>')
+    return f'<div class="outputs">{"".join(parts)}</div>'
+
+
+def html_code(code, folded):
+    pretty = highlight(code, PythonLexer(), HtmlFormatter(cssclass="highlight"))
+    return f'<details class="code"{"" if folded else " open"}><summary>Code</summary>{pretty}</details>'
+
+
+def html_editor(code, rerun):
+    return (f'<div class="editor loading" data-rerun="{rerun}">'
+            f'<textarea spellcheck="false" disabled>{html.escape(code)}</textarea>'
+            '<div class="bar"><button type="button" disabled>Run</button>' + LOADING +
+            '<span class="hint">Edit the code, then Run (or Shift+Enter)</span></div></div>')
+
+
+def html_sliders(sliders, rerun):
+    rows = "".join(
+        f'<label class="control"><span>{name}</span>'
+        f'<input type="range" name="{name}" min="{lo}" max="{hi}" step="{step}" value="{value}" disabled>'
+        f'<output>{value}</output></label>'
+        for name, (lo, hi, step, value) in sliders.items())
+    return f'<div class="sliders loading" data-rerun="{rerun}">{rows}{LOADING}</div>'
+
+
+# ---- the page ------------------------------------------------------------------
 
 def build(nb):
-    live.install()
     ns = {"__name__": "__main__"}
-    parts, code_cells, title = [], [], None
-    lexer, fmt = PythonLexer(), HtmlFormatter(cssclass="highlight")
+    parts, cells, title = [], [], None
     for cell in nb.cells:
-        tags = set(cell.metadata.get("tags", []))
-        if cell.cell_type == "code":
-            code_cells.append(cell.source)
-            outputs = live.run_cell(cell.source, ns)
-            if "remove-cell" in tags:
-                continue
-            block = []
-            marks = page_marks(cell.source)
-            # Colab's "Hide code" (Form menu) stores cellView = "form"
-            hidden = ("hide" in marks or "remove-input" in tags
-                      or cell.metadata.get("cellView") == "form")
-            code = live.strip_magics(cell.source)
-            if "edit" in marks:
-                block.append(
-                    f'<div class="editor loading" data-cell="{len(code_cells) - 1}">'
-                    f'<textarea spellcheck="false" rows="{code.count(chr(10)) + 1}" disabled>{html.escape(code)}</textarea>'
-                    '<div class="editor-bar"><button type="button" disabled>Run</button>'
-                    '<span class="status"><span class="spinner"></span>Loading Python</span>'
-                    '<span class="hint">Edit the code, then Run (or Shift+Enter)</span></div></div>')
-            elif code.strip() and not hidden:
-                opened = "" if ("fold" in marks or "hide-input" in tags) else " open"
-                block.append(f'<details class="code"{opened}><summary>Code</summary>'
-                             f'{highlight(code, lexer, fmt)}</details>')
-            rendered = "".join(render_output(o) for o in outputs)
-            if rendered or "edit" in marks:
-                block.append(f'<div class="outputs">{rendered}</div>')
-            if any(block):
-                parts.append('<div class="cell">' + "".join(block) + "</div>")
-        elif cell.cell_type == "markdown" and "remove-cell" not in tags:
-            src = cell.source.lstrip()
-            if title is None and src.startswith("# "):
-                first, _, rest = src.partition("\n")
-                title = first[2:].strip()
-                parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown2html_mistune(rest)}</header>")
-                parts.append(f'<p><a class="button" href="{NOTEBOOK_URL}">Open as notebook</a>'
-                             '<span class="hint">to change the code and run it yourself</span></p>')
+        if cell.cell_type == "markdown":
+            src = cell.source.strip()
+            if title is None and src.startswith("# "):  # the notebook's title
+                title, _, rest = src[2:].partition("\n")
+                parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown2html_mistune(rest)}</header>"
+                             f'<p><a class="button" href="{NOTEBOOK_URL}">Open as notebook</a></p>')
             else:
-                parts.append(f"<section>{markdown2html_mistune(cell.source)}</section>")
-    return title or "Potential flow", "\n".join(parts), code_cells
+                parts.append(f"<section>{markdown2html_mistune(src)}</section>")
+            continue
+
+        index = len(cells)
+        cells.append(cell.source)
+        opts = read_first_line(cell.source)
+        sliders = read_sliders(cell.source)
+        outputs = live.run_cell(cell.source, ns, {k: v[3] for k, v in sliders.items()})
+        code = shown_code(cell.source)
+
+        pieces = []
+        if sliders:
+            pieces.append(html_sliders(sliders, opts.get("rerun", ALL)))
+        if opts.get("edit") and not sliders:  # a cell has sliders or an editor, not both
+            # the editor holds all the code, since what's in it is what runs
+            pieces.append(html_editor(live.clean(cell.source).strip(), opts.get("rerun", 0)))
+        elif code and not opts.get("hide"):
+            pieces.append(html_code(code, folded=opts.get("fold", False)))
+        pieces.append(html_outputs(outputs))
+        parts.append(f'<div class="cell" data-cell="{index}">{"".join(pieces)}</div>')
+    return title or "Potential flow", "\n".join(parts), cells
 
 
-def main(dest, notebook=NOTEBOOK):
-    nb = nbformat.read(notebook, as_version=4)
-    title, body, code_cells = build(nb)
-    config = {
+def main(dest="dist/index.html", notebook=NOTEBOOK):
+    title, body, cells = build(nbformat.read(notebook, as_version=4))
+    config = {  # read by page.js
         "pyodide": f"https://cdn.jsdelivr.net/pyodide/v{PYODIDE_VERSION}/full/",
         "plotly": plotly.__version__,
-        "cells": code_cells,
+        "cells": cells,
         "live_py": (ROOT / "page" / "live.py").read_text(),
     }
     page = (ROOT / "page" / "template.html").read_text()
-    for key, value in {
-        "{{title}}": html.escape(title),
-        "{{plotly_js}}": plotly.offline.get_plotlyjs_version(),
-        "{{pyodide}}": config["pyodide"],
-        "{{config}}": script_json(config),
-        "{{body}}": body,
-    }.items():
-        page = page.replace(key, value)
+    page = (page.replace("{{title}}", html.escape(title))
+                .replace("{{plotly_js}}", plotly.offline.get_plotlyjs_version())
+                .replace("{{pyodide}}", config["pyodide"])
+                .replace("{{config}}", json.dumps(config).replace("</", "<\\/"))
+                .replace("{{body}}", body))
     css = (ROOT / "page" / "style.css").read_text()
-    css += "\n/* code highlighting */\n" + HtmlFormatter(style="friendly").get_style_defs(".highlight")
+    css += HtmlFormatter(style="friendly").get_style_defs(".highlight")
     css += "\n@media (prefers-color-scheme: dark) {\n" + HtmlFormatter(style="monokai").get_style_defs(".highlight") + "\n}\n"
+
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(page)
@@ -161,4 +203,4 @@ def main(dest, notebook=NOTEBOOK):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:2] or ["dist/index.html"], *sys.argv[2:3])
+    main(*sys.argv[1:3])

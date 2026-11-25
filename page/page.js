@@ -1,206 +1,164 @@
-// Draws the plots built from the notebook, then loads Python (Pyodide) in the
-// background, wires the sliders to the notebook's own functions and enables
-// the "# page:edit" cells.
+// The page's behaviour, in three steps:
+//   1. Draw the Plotly figures that build_page.py stored in the page.
+//   2. Load Python in the browser (Pyodide) and run all the notebook's cells.
+//   3. Switch on the sliders and editors. Moving a slider or pressing Run
+//      reruns code with page/live.py and redraws that cell's outputs.
 (function () {
   var config = JSON.parse(document.getElementById("page-config").textContent);
-  var plotConfig = { responsive: true, displaylogo: false };
-  var notebookHref = (document.querySelector("a.button") || {}).getAttribute
-    ? document.querySelector("a.button").getAttribute("href") : "notebooks/";
-  var live = null; // the Python module, once loaded
+  var live, ns; // the Python helper module and the notebook's variables, once loaded
+
+  // ---- outputs ----------------------------------------------------------------
 
   function draw(div, fig) {
-    if (!fig) return;
     var layout = Object.assign({}, fig.layout, { autosize: true });
-    delete layout.width;
-    Plotly.react(div, fig.data, layout, plotConfig);
+    delete layout.width; // fit the page instead
+    Plotly.react(div, fig.data, layout, { responsive: true, displaylogo: false });
   }
 
-  function el(tag, cls, text) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (text != null) e.textContent = text;
-    return e;
+  function pre(cls, text) {
+    var p = document.createElement("pre");
+    p.className = cls;
+    p.textContent = text;
+    return p;
   }
 
-  // ---- slider blocks ------------------------------------------------------
-
-  function values(block) {
-    var v = {};
-    block.querySelectorAll(".controls input, .controls select").forEach(function (i) {
-      if (i.type === "checkbox") v[i.name] = i.checked;
-      else if (i.type === "range") v[i.name] = Number(i.value);
-      else v[i.name] = i.value;
+  // Run code for cell number `i` and replace its outputs. Returns false on an error.
+  function runCell(i, code) {
+    var cell = document.querySelector('.cell[data-cell="' + i + '"]');
+    var block = cell.querySelector(".sliders");
+    var sliders = JSON.stringify(block ? sliderValues(block) : {});
+    var outputs = JSON.parse(live.run_cell_json(code, ns, sliders));
+    var box = cell.querySelector(".outputs");
+    box.innerHTML = "";
+    outputs.forEach(function (out) {
+      if (out.type === "text") box.appendChild(pre("output", out.text));
+      if (out.type === "error") box.appendChild(pre("output error", out.text));
+      if (out.type === "plot") {
+        var div = document.createElement("div");
+        div.className = "plot";
+        box.appendChild(div);
+        draw(div, out.figure);
+      }
     });
-    return v;
+    return !outputs.some(function (out) { return out.type === "error"; });
   }
 
-  function wire(block) {
-    var id = Number(block.dataset.live);
-    var plot = block.querySelector(".plot");
-    var busy = false, pending = false;
-    function update() {
-      if (busy) { pending = true; return; }
-      busy = true;
-      requestAnimationFrame(function () { // let the slider repaint first
-        try {
-          draw(plot, JSON.parse(live.call_json(id, JSON.stringify(values(block)))));
-        } catch (e) { console.error(e); }
-        busy = false;
-        if (pending) { pending = false; update(); }
-      });
+  // The code of cell `i`: what's in its editor if it has one, else the notebook's.
+  function codeOf(i) {
+    var editor = document.querySelector('.cell[data-cell="' + i + '"] textarea');
+    return editor ? editor.value : config.cells[i];
+  }
+
+  // Run cell `i`, then the next `rerun` cells, stopping at the first error.
+  function runFrom(i, rerun) {
+    var last = Math.min(i + rerun, config.cells.length - 1);
+    for (var k = i; k <= last; k++) {
+      if (!runCell(k, codeOf(k))) return;
     }
-    block.querySelectorAll(".controls input, .controls select").forEach(function (i) {
-      i.disabled = false;
-      i.addEventListener("input", function () {
-        var out = i.nextElementSibling;
-        if (out && out.tagName === "OUTPUT") out.value = i.value;
+  }
+
+  // ---- sliders and editors ------------------------------------------------------
+
+  function cellNumber(el) { return Number(el.closest(".cell").dataset.cell); }
+
+  // {"Vinf": 2.5, ...}: page/live.py puts these into the cell's "Vinf = ..." lines
+  function sliderValues(block) {
+    var values = {};
+    block.querySelectorAll("input").forEach(function (s) { values[s.name] = Number(s.value); });
+    return values;
+  }
+
+  // While Python is busy, remember only that another run is wanted.
+  function whenFree(fn) {
+    var busy = false, again = false;
+    return function go() {
+      if (busy) { again = true; return; }
+      busy = true;
+      requestAnimationFrame(function () { // let the slider move on screen first
+        try { fn(); } catch (e) { console.error(e); }
+        busy = false;
+        if (again) { again = false; go(); }
+      });
+    };
+  }
+
+  function startSliders(block) {
+    var i = cellNumber(block);
+    var update = whenFree(function () { runFrom(i, Number(block.dataset.rerun)); });
+    block.querySelectorAll("input").forEach(function (s) {
+      s.disabled = false;
+      s.addEventListener("input", function () {
+        s.nextElementSibling.value = s.value; // the number next to the slider
         update();
       });
     });
     block.classList.remove("loading");
   }
 
-  // Same markup as render_live() in build_page.py, for blocks made by edited cells.
-  function liveBlock(spec) {
-    var block = el("div", "live loading");
-    block.dataset.live = spec.id;
-    var controls = el("div", "controls");
-    spec.controls.forEach(function (c) {
-      var label = el("label", "control");
-      label.appendChild(el("span", null, c.label));
-      var input;
-      if (c.kind === "slider") {
-        input = el("input");
-        input.type = "range";
-        input.min = c.min; input.max = c.max; input.step = c.step; input.value = c.value;
-        label.appendChild(input);
-        input.name = c.name;
-        label.appendChild(el("output", null, String(c.value)));
-      } else if (c.kind === "dropdown") {
-        input = el("select");
-        c.choices.forEach(function (o) {
-          var opt = el("option", null, String(o));
-          if (o === c.value) opt.selected = true;
-          input.appendChild(opt);
-        });
-        input.name = c.name;
-        label.appendChild(input);
-      } else {
-        input = el("input");
-        input.type = "checkbox";
-        input.checked = !!c.value;
-        input.name = c.name;
-        label.appendChild(input);
-      }
-      controls.appendChild(label);
-    });
-    block.appendChild(controls);
-    var plot = el("div", "plot");
-    block.appendChild(plot);
-    return { block: block, plot: plot };
-  }
-
-  function renderOutputs(container, outs) {
-    container.innerHTML = "";
-    outs.forEach(function (o) {
-      if (o.type === "text") container.appendChild(el("pre", "output", o.text));
-      else if (o.type === "error") container.appendChild(el("pre", "output error", o.text));
-      else if (o.type === "plot") {
-        var div = el("div", "plot");
-        container.appendChild(div);
-        draw(div, o.figure);
-      } else if (o.type === "live") {
-        var b = liveBlock(o);
-        container.appendChild(b.block);
-        draw(b.plot, o.figure);
-        wire(b.block);
-      }
-    });
-  }
-
-  // ---- editable cells -----------------------------------------------------
-
-  function enableEditor(ed, ns) {
-    var area = ed.querySelector("textarea");
-    var button = ed.querySelector("button");
-    var outputs = ed.parentNode.querySelector(".outputs");
-    function fit() { area.style.height = "auto"; area.style.height = area.scrollHeight + "px"; }
+  function startEditor(editor) {
+    var i = cellNumber(editor);
+    var area = editor.querySelector("textarea");
+    var button = editor.querySelector("button");
     function run() {
       button.disabled = true;
-      button.textContent = "Running…";
       requestAnimationFrame(function () {
-        try {
-          renderOutputs(outputs, JSON.parse(live.run_cell_json(area.value, ns)));
-        } catch (e) {
-          renderOutputs(outputs, [{ type: "error", text: String(e) }]);
-        }
+        runFrom(i, Number(editor.dataset.rerun));
         button.disabled = false;
-        button.textContent = "Run";
       });
     }
-    area.disabled = false;
-    button.disabled = false;
-    area.addEventListener("input", fit);
+    area.disabled = button.disabled = false;
+    button.addEventListener("click", run);
     area.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); run(); }
-      else if (e.key === "Tab" && !e.shiftKey) {
-        e.preventDefault();
-        var s = area.selectionStart;
-        area.setRangeText("    ", s, area.selectionEnd, "end");
-        fit();
-      }
+      if (e.key === "Tab") { e.preventDefault(); area.setRangeText("    ", area.selectionStart, area.selectionEnd, "end"); }
     });
-    button.addEventListener("click", run);
-    fit();
-    ed.classList.remove("loading");
+    editor.classList.remove("loading");
   }
 
-  // ---- start up -----------------------------------------------------------
+  function fitHeight(area) { area.style.height = "auto"; area.style.height = area.scrollHeight + "px"; }
 
-  // 1. Plots from the build, straight away.
+  // ---- start --------------------------------------------------------------------
+
+  // 1. Plots from the build.
   document.querySelectorAll("script.fig").forEach(function (s) {
     draw(s.previousElementSibling, JSON.parse(s.textContent));
   });
-  document.querySelectorAll(".editor textarea").forEach(function (a) {
-    a.style.height = a.scrollHeight + "px";
+  document.querySelectorAll(".editor textarea").forEach(function (area) {
+    fitHeight(area);
+    area.addEventListener("input", function () { fitHeight(area); });
   });
 
-  var blocks = Array.prototype.slice.call(document.querySelectorAll("[data-live]"));
-  var editors = Array.prototype.slice.call(document.querySelectorAll(".editor"));
-  if (!blocks.length && !editors.length) return;
+  var sliders = document.querySelectorAll(".sliders");
+  var editors = document.querySelectorAll(".editor");
+  if (!sliders.length && !editors.length) return; // nothing interactive: no need for Python
 
-  function fail(err) {
-    console.error(err);
-    blocks.concat(editors).forEach(function (b) {
-      b.classList.remove("loading");
-      b.classList.add("failed");
-      b.querySelector(".status").innerHTML =
-        "Couldn’t load Python. <a href=\"" + notebookHref + "\">Open as notebook</a> instead.";
-    });
-  }
-
-  // 2. Python in the background.
-  async function start() {
+  // 2. Python, in the background.
+  async function loadPython() {
     var py = await loadPyodide({ indexURL: config.pyodide });
-    var all = config.cells.join("\n");
-    await py.loadPackagesFromImports(all.split("\n").filter(function (l) {
-      return !/^\s*[%!]/.test(l);
-    }).join("\n"));
-    if (/\bplotly\b/.test(all)) {
-      await py.loadPackage("micropip");
-      await py.pyimport("micropip").install("plotly==" + config.plotly);
-    }
+    var code = config.cells.map(function (c) { return c.replace(/^\s*[%!].*$/gm, ""); }).join("\n");
+    await py.loadPackagesFromImports(code); // numpy, scipy, ... as the notebook imports them
+    await py.loadPackage("micropip");
+    await py.pyimport("micropip").install("plotly==" + config.plotly);
     py.FS.writeFile("/home/pyodide/live.py", config.live_py);
     live = py.pyimport("live");
-    live.install();
-    var ns = py.runPython("{'__name__': '__main__'}");
-    config.cells.forEach(function (src) { live.run_cell(src, ns); });
-    blocks.forEach(wire);
-    editors.forEach(function (ed) { enableEditor(ed, ns); });
+    ns = py.runPython("{'__name__': '__main__'}");
+    config.cells.forEach(function (src, i) { runCell(i, src); });
   }
 
+  // 3. Switch everything on, or say what went wrong.
   window.addEventListener("load", function () {
-    if (typeof loadPyodide === "undefined") return fail("pyodide.js did not load");
-    start().catch(fail);
+    loadPython().then(function () {
+      sliders.forEach(startSliders);
+      editors.forEach(startEditor);
+    }).catch(function (err) {
+      console.error(err);
+      document.querySelectorAll(".sliders, .editor").forEach(function (b) {
+        b.classList.remove("loading");
+        b.classList.add("failed");
+        b.querySelector(".status").innerHTML =
+          'Couldn’t load Python. <a href="' + document.querySelector("a.button").getAttribute("href") +
+          '">Open as notebook</a> instead.';
+      });
+    });
   });
 })();
