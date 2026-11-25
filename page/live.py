@@ -148,7 +148,11 @@ def call_json(index, values_json):
 # ---- running cells -------------------------------------------------------
 
 def strip_magics(src):
-    return "\n".join(l for l in src.splitlines() if not l.lstrip().startswith(("%", "!")))
+    """Drop IPython magics/shell lines and Colab "# @title" form headers."""
+    def keep(line):
+        s = line.lstrip()
+        return not s.startswith(("%", "!", "#@title", "# @title", "#@markdown", "# @markdown"))
+    return "\n".join(l for l in src.splitlines() if keep(l))
 
 
 def run_cell(src, ns):
