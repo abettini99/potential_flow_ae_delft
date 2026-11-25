@@ -1,215 +1,107 @@
-"""Run notebook code outside Jupyter: at build time (CPython) and in the web page (Pyodide).
+"""Runs notebook code cells outside Jupyter.
 
-Stands in for `ipywidgets` so that the same notebook code works three ways:
-in JupyterLite (real ipywidgets), when the page is built, and live in the page.
-Supported: interact / interact as a decorator, FloatSlider, IntSlider, Dropdown,
-Checkbox, and the (min, max, step) / list / bool shorthands.
-Plotly figures are captured from fig.show() or from a cell's last expression.
+The same file is used twice: by build_page.py when the site is built (normal
+Python) and inside the web page (Python in the browser, via Pyodide). Both run
+every cell in one shared namespace, like a notebook kernel does.
+
+A cell's outputs are collected as a list of dicts:
+    {"type": "text",  "text": ...}     anything printed, or the value of the last line
+    {"type": "plot",  "figure": ...}   a Plotly figure (fig.show() or the last line)
+    {"type": "error", "text": ...}     the traceback, only in run_cell_json
 """
 import ast
 import contextlib
-import inspect
 import io
 import json
+import re
 import sys
+import traceback
+import types
 
-IN_BROWSER = sys.platform == "emscripten"
-_interacts = []   # (function, controls) in the order the notebook creates them
-_outputs = None   # output list of the cell being run, or None
+_outputs = None  # outputs of the cell that is running
 
-
-# ---- widgets -------------------------------------------------------------
-
-class _Control:
-    kind = ""
-
-    def __init__(self, value=None, description="", **kw):
-        self.value = value
-        self.description = description
-        self.options = kw
-
-    def spec(self, name):
-        d = {"name": name, "kind": self.kind, "label": self.description or name, "value": self.value}
-        d.update(self.options)
-        return d
+SLIDER_RE = re.compile(r"\s*#\s*page:slider\s*\((.*)\)\s*")  # "# page:slider (0.5, 5.0, 0.1)"
+ASSIGN_RE = re.compile(r"\s*([A-Za-z_]\w*)\s*=\s*(.+?)\s*")  # "Vinf = 1" on the next line
 
 
-class FloatSlider(_Control):
-    kind = "slider"
-
-    def __init__(self, value=None, min=0.0, max=10.0, step=0.1, description="", **kw):
-        value = (min + max) / 2 if value is None else value
-        super().__init__(value, description, min=min, max=max, step=step)
-
-
-class IntSlider(FloatSlider):
-    def __init__(self, value=None, min=0, max=100, step=1, description="", **kw):
-        value = (min + max) // 2 if value is None else value
-        super().__init__(value, min, max, step, description)
-
-
-class Dropdown(_Control):
-    kind = "dropdown"
-
-    def __init__(self, options=(), value=None, description="", **kw):
-        options = list(options)
-        super().__init__(options[0] if value is None and options else value, description, choices=options)
-
-
-class Checkbox(_Control):
-    kind = "checkbox"
-
-    def __init__(self, value=False, description="", **kw):
-        super().__init__(bool(value), description)
-
-
-def _control(v):
-    if isinstance(v, _Control):
-        return v
-    if isinstance(v, bool):
-        return Checkbox(v)
-    if isinstance(v, tuple) and len(v) in (2, 3):
-        lo, hi = v[0], v[1]
-        step = v[2] if len(v) == 3 else None
-        if all(isinstance(x, int) for x in v):
-            return IntSlider(min=lo, max=hi, step=step or 1)
-        return FloatSlider(min=lo, max=hi, step=step or (hi - lo) / 100)
-    if isinstance(v, (list, dict)):
-        return Dropdown(list(v))
-    return None  # a fixed argument
-
-
-def interact(f=None, **kwargs):
-    if f is None:
-        return lambda g: interact(g, **kwargs)
-    controls, fixed = {}, {}
-    try:
-        defaults = {k: p.default for k, p in inspect.signature(f).parameters.items()
-                    if p.default is not inspect.Parameter.empty}
-    except (TypeError, ValueError):
-        defaults = {}
-    for name, v in kwargs.items():
-        c = _control(v)
-        if c is None:
-            fixed[name] = v
-            continue
-        # Like ipywidgets: a shorthand starts at the function's default value.
-        if not isinstance(v, _Control) and name in defaults:
-            c.value = defaults[name]
-        controls[name] = c
-    func = (lambda **vals: f(**fixed, **vals)) if fixed else f
-    index = len(_interacts)
-    _interacts.append(func)
-    spec = {"id": index, "controls": [c.spec(n) for n, c in controls.items()]}
-    if not IN_BROWSER:
-        spec["figure"] = call(index, {n: c.value for n, c in controls.items()})
-    _emit({"type": "live", **spec})
-    return f
-
-
-# ---- outputs -------------------------------------------------------------
-
-def _emit(out):
+def _show(fig, *args, **kwargs):
+    """Replaces Plotly's fig.show(): keep the figure instead of opening it."""
     if _outputs is not None:
-        _outputs.append(out)
+        _outputs.append({"type": "plot", "figure": json.loads(fig.to_json())})
 
 
-def _figure_json(fig):
-    return json.loads(fig.to_json())
+def find_sliders(src):
+    """{"Vinf": ((0.5, 5.0, 0.1), "1", line number)} for each "# page:slider (min, max, step)"
+    with "Vinf = 1" on the line below it."""
+    lines, found = src.splitlines(), {}
+    for i, line in enumerate(lines):
+        if m := SLIDER_RE.fullmatch(line):
+            a = ASSIGN_RE.fullmatch(lines[i + 1]) if i + 1 < len(lines) else None
+            if not a:
+                raise ValueError(f"put 'name = value' on the line under '{line.strip()}'")
+            found[a.group(1)] = (ast.literal_eval(f"({m.group(1)})"), a.group(2), i + 1)
+    return found
 
 
-def _patch_plotly():
-    try:
-        from plotly.basedatatypes import BaseFigure
-    except ImportError:
-        return
-    BaseFigure.show = lambda self, *a, **k: _emit({"type": "plot", "figure": _figure_json(self)})
+def set_sliders(src, values):
+    """The cell's code with each slider's "name = ..." line set to the slider's value."""
+    lines = src.splitlines()
+    for name, ((lo, hi, step), _, i) in find_sliders(src).items():
+        if name in values:
+            value = values[name]
+            if any(isinstance(x, float) for x in (lo, hi, step)):
+                value = float(value)  # a 0.1-step slider at 2 gives 2.0, not 2
+            indent = lines[i][: len(lines[i]) - len(lines[i].lstrip())]
+            lines[i] = f"{indent}{name} = {value!r}"
+    return "\n".join(lines)
 
 
-def call(index, values):
-    """Run interact function `index` with `values`; return the figure it made, or None."""
+def clean(src):
+    """The code to run and show: without %pip/!shell lines and page markers."""
+    skip = ("%", "!", "# page:", "#page:", "# rerun=", "#rerun=")
+    return "\n".join(l for l in src.splitlines() if not l.lstrip().startswith(skip))
+
+
+def run_cell(src, ns, sliders=None):
+    """Run one cell in namespace `ns` and return its outputs. Errors are raised.
+    `sliders` ({"Vinf": 2.5}) replaces the values written under "# page:slider" lines."""
     global _outputs
-    saved, _outputs = _outputs, []
-    try:
-        result = _interacts[index](**values)
-        if result is not None and hasattr(result, "to_json"):
-            _emit({"type": "plot", "figure": _figure_json(result)})
-        figs = [o["figure"] for o in _outputs if o["type"] == "plot"]
-    finally:
-        _outputs = saved
-    return figs[-1] if figs else None
+    from plotly.basedatatypes import BaseFigure
+    BaseFigure.show = _show
+    # ipywidgets doesn't exist in the browser; the page has its own sliders.
+    sys.modules.setdefault("ipywidgets", types.ModuleType("ipywidgets"))
 
-
-def call_json(index, values_json):
-    """Page entry point: JSON in, JSON out."""
-    return json.dumps(call(index, json.loads(values_json)))
-
-
-# ---- running cells -------------------------------------------------------
-
-def strip_magics(src):
-    """Drop IPython magics/shell lines and Colab "# @title" form headers."""
-    def keep(line):
-        s = line.lstrip()
-        return not s.startswith(("%", "!", "#@title", "# @title", "#@markdown", "# @markdown",
-                                 "# page:", "#page:", "# @interact", "#@interact"))
-    return "\n".join(l for l in src.splitlines() if keep(l))
-
-
-def run_cell(src, ns):
-    """Execute one code cell like Jupyter would; return its outputs."""
-    global _outputs
-    _patch_plotly()
-    _outputs = outs = []
-    tree = ast.parse(strip_magics(src))
+    if sliders:
+        src = set_sliders(src, sliders)
+    _outputs = outputs = []
+    tree = ast.parse(clean(src))
+    # Like Jupyter: if the last line is an expression, its value is shown.
     last = tree.body.pop() if tree.body and isinstance(tree.body[-1], ast.Expr) else None
-    buf = io.StringIO()
+    printed = io.StringIO()
     try:
-        with contextlib.redirect_stdout(buf):
+        with contextlib.redirect_stdout(printed):
             exec(compile(tree, "<cell>", "exec"), ns)
-            if last is not None:
+            if last is not None and not clean(src).rstrip().endswith(";"):
                 value = eval(compile(ast.Expression(last.value), "<cell>", "eval"), ns)
-                quiet = strip_magics(src).rstrip().endswith(";")
-                if value is None or quiet or callable(value):
-                    pass  # interact() returns the function; Jupyter's repr of it is noise here
-                elif hasattr(value, "to_json"):
-                    _emit({"type": "plot", "figure": _figure_json(value)})
-                else:
+                if isinstance(value, BaseFigure):
+                    _show(value)
+                elif value is not None:
                     print(repr(value))
     finally:
         _outputs = None
-    if buf.getvalue():
-        outs.insert(0, {"type": "text", "text": buf.getvalue()})
-    return outs
+    if printed.getvalue():
+        outputs.insert(0, {"type": "text", "text": printed.getvalue()})
+    return outputs
 
 
-def run_cell_json(src, ns):
-    """Page entry point for an edited cell: run it and return its outputs as JSON.
-
-    Errors come back as an "error" output instead of raising. Slider blocks get
-    their first figure here, since nothing drew them at build time."""
-    import traceback
+def run_cell_json(src, ns, sliders_json="{}"):
+    """For the page: run a cell, return its outputs as JSON, errors included."""
     try:
-        outs = run_cell(src, ns)
-    except Exception:
-        etype, err, tb = sys.exc_info()
-        # show only the frames from the reader's own code
-        frames = [f for f in traceback.extract_tb(tb) if f.filename == "<cell>"]
-        text = "".join(traceback.format_list(frames) + traceback.format_exception_only(etype, err))
-        outs = [{"type": "error", "text": text.strip()}]
-    for o in outs:
-        if o["type"] == "live" and "figure" not in o:
-            o["figure"] = call(o["id"], {c["name"]: c["value"] for c in o["controls"]})
-    return json.dumps(outs)
+        outputs = run_cell(src, ns, json.loads(sliders_json))
+    except Exception as err:
+        # Only show the lines of the traceback that point into the cell itself.
+        frames = [f for f in traceback.extract_tb(err.__traceback__) if f.filename == "<cell>"]
+        text = "".join(traceback.format_list(frames) + traceback.format_exception_only(type(err), err))
+        outputs = [{"type": "error", "text": text.strip()}]
+    return json.dumps(outputs)
 
-
-def set_params(values_json, floats_json, ns):
-    """Page entry point for "# @param" sliders: assign the new values in the notebook's namespace."""
-    floats = set(json.loads(floats_json))
-    for name, value in json.loads(values_json).items():
-        ns[name] = float(value) if name in floats else value
-
-
-def install():
-    """Make `import ipywidgets` resolve to this module."""
-    sys.modules["ipywidgets"] = sys.modules[__name__]

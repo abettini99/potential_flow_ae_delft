@@ -4,36 +4,46 @@ This tool is developed to visualize potential flows in an intuitive interface fo
 
 ## The site
 
-- **https://abettini99.github.io/potential_flow_ae_delft/** is the notebook rendered as a normal web page: text, maths, plots and sliders, in the homepage's style. Plots show immediately; Python then loads in the background (a spinner shows next to each set of sliders) and the sliders rerun the notebook's own functions.
-- **Open as notebook** on that page opens the same notebook in JupyterLite, where students can edit and run the code.
+- **https://abettini99.github.io/potential_flow_ae_delft/** is the notebook shown as a web page: text, maths, code and plots, in the homepage's style.
+- **Open as notebook** on that page opens the same notebook in JupyterLite, where anyone can change and run all of it.
 
-Both are built from `content/potential_flow.ipynb` by `.github/workflows/deploy.yml` on every push to `main`.
+Every push to `main` rebuilds both from `content/potential_flow.ipynb` (`.github/workflows/deploy.yml`, about a minute).
 
-## Writing the notebook so the page works
+## Writing the notebook
 
-- Interactive parts: use `ipywidgets.interact` (or `@interact`) with `FloatSlider`, `IntSlider`, `Dropdown`, `Checkbox` or the `(min, max, step)` shorthand, and have the function `return` a Plotly figure or call `fig.show()`. The same code works in JupyterLite and on the page.
-- Plots: use Plotly (`plotly.graph_objects`). Matplotlib output is not carried over to the page.
-- Code is shown on the page by default. Put one of these on a cell's first line to change that:
-  - `# page:hide`: the cell runs but its code isn't shown (its output and sliders still are).
-  - `# page:fold`: the code is folded behind a "Code" toggle.
-  - `# page:edit rerun=2`: as below, and Run also reruns the next 2 code cells (hidden ones count) so their plots and sliders update. `rerun=all` reruns every code cell below. Use it when later cells depend on values set in the editable cell.
-  - `# page:edit`: readers can edit the code and press Run (or Shift+Enter) on the page itself. It runs in the same Python session as the rest of the page, so it can use everything defined above it, and a redefined function is picked up by sliders that look it up by name.
-- Sliders over plain code: make the first line of a cell a comment like
-  ```python
-  # @interact(Vinf=(0.5, 5.0, 0.1), angle=(-30, 30, 1), Lambda=(1, 5, 0.1))
-  phi_1, psi_1 = uniform(Vinf, np.deg2rad(angle))
-  ...
-  ```
-  `(min, max, step)` gives a slider, a list a dropdown, `True`/`False` a checkbox. On the page the sliders appear above the code; moving one sets those variables, reruns this cell and every code cell below (`rerun=2` after the closing parenthesis limits it to the next 2). Each slider starts at the variable's value from an earlier cell (e.g. `Vinf, angle, Lambda = 1, 30, 1`), so define them before this cell; the cell then also runs unchanged in Colab or Jupyter, where the comment is ignored.
-- Sliders for parameters: write each parameter on its own line with Colab's form syntax, for example
-  ```python
-  Vinf = 1.0    # @param {type:"slider", min:0.5, max:5, step:0.1}
-  angle = 30    # @param {type:"slider", min:-90, max:90, step:1}
-  show_vectors = True  # @param {type:"boolean"}
-  shape = "cylinder"   # @param ["cylinder", "oval"]
-  ```
-  It is plain Python (Colab even shows the same sliders). On the page the cell shows only the controls; moving one sets the variable and reruns every code cell below. Add `# page: rerun=2` as the first line to rerun only the next 2. `{type:"number"}` gives a number box.
-- Notebook tags still work: `remove-cell` hides a cell completely (code and output), `remove-input` is the same as `# page:hide`. Colab's ⋮ > Form > Hide code also counts as hide.
-- Packages: anything Pyodide ships (numpy, scipy, ...) loads automatically from the imports; plotly is installed on the fly.
+Make plots with Plotly (`fig.show()`, or a figure on a cell's last line). Printed text shows too.
 
-Preview locally with `pip install -r requirements.txt && python build_page.py dist/index.html`, then open `dist/index.html` through a local web server (`python -m http.server -d dist`).
+Code is shown on the page by default. The first line of a code cell can change that:
+
+| First line | On the page |
+|---|---|
+| *(nothing special)* | code, then its output |
+| `# page:hide` | output only |
+| `# page:fold` | code folded behind a "Code" toggle |
+| `# page:edit` | code in an editor with a Run button (or Shift+Enter) |
+| `# page:edit rerun=2` | same, and Run also reruns the next 2 code cells (`rerun=all`: every cell below) |
+
+**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. Moving a slider puts its value in that line and reruns the cell and every cell below it; `# rerun=2` on the cell's first line reruns only the next 2.
+
+```python
+# rerun=2
+
+# page:slider (0.5, 5.0, 0.1)
+Vinf = 1
+
+# page:slider (-30, 30, 1)
+angle = 0
+```
+
+A cell has sliders or an editor, not both. All of these are comments, so the notebook runs unchanged in Colab or Jupyter.
+
+## How it works
+
+Three small files in this repo, plus the workflow:
+
+- `build_page.py` reads the notebook, runs every code cell in order, and writes `index.html` with the text, highlighted code and plots already in it. The first-line markers above are read here.
+- `page/live.py` runs one cell and collects what it printed and the Plotly figures it made. The build uses it, and so does the page.
+- `page/page.js` draws the plots, then loads Python in the browser ([Pyodide](https://pyodide.org)) and runs the cells again so that sliders and Run buttons can rerun code. Until that has loaded, sliders and editors show "Loading Python".
+- `page/template.html` and `page/style.css` are the page's frame and look (copied from the homepage).
+
+To preview locally: `pip install -r requirements.txt && python build_page.py dist/index.html && python -m http.server -d dist`, then open http://localhost:8000.

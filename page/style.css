@@ -1,8 +1,10 @@
+/* Same look as the homepage (abettini99.github.io/style.css) */
 :root {
   --bg: #ffffff;
   --text: #222222;
   --muted: #666666;
   --link: #0b5fff;
+  --error: #cc3333;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -11,6 +13,7 @@
     --text: #eeeeee;
     --muted: #999999;
     --link: #6ea8ff;
+    --error: #ff7777;
   }
 }
 
@@ -24,48 +27,11 @@ body {
   line-height: 1.6;
 }
 
-main, footer {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-main { padding-top: 4rem; }
-
-h1 { margin-bottom: 0; }
-h2 { margin-top: 2.5rem; font-size: 1.2rem; }
-
-.tagline { color: var(--muted); margin-top: 0.25rem; }
-
-a { color: var(--link); }
-
-.links { padding-left: 1.2rem; }
-
-footer {
-  margin-top: 4rem;
-  padding-bottom: 2rem;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.projects { list-style: none; padding: 0; }
-.projects li { margin-bottom: 1.25rem; }
-.projects p { margin: 0.25rem 0 0; color: var(--muted); }
-
-.projects .button {
-  display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.35rem 0.8rem;
-  border: 1px solid var(--link);
-  border-radius: 4px;
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-.projects .button:hover { background: var(--link); color: var(--bg); }
-
-/* Notebook page: wider column so plots have room */
-main, footer { max-width: 760px; }
+main, footer { max-width: 760px; margin: 0 auto; padding: 0 1rem; }
 main { padding-top: 2rem; }
+footer { margin-top: 4rem; padding-bottom: 2rem; color: var(--muted); font-size: 0.9rem; }
+h2 { margin-top: 2.5rem; font-size: 1.2rem; }
+a { color: var(--link); }
 .back { margin: 0 0 2rem; }
 
 .button {
@@ -74,80 +40,53 @@ main { padding-top: 2rem; }
   border: 1px solid var(--link);
   border-radius: 4px;
   text-decoration: none;
-  font-size: 0.95rem;
 }
 .button:hover { background: var(--link); color: var(--bg); }
-.hint { color: var(--muted); font-size: 0.9rem; margin-left: 0.5rem; }
 
+/* Headings get a ¶ link from the markdown converter; show it on hover only */
+.anchor-link { visibility: hidden; text-decoration: none; margin-left: 0.3rem; color: var(--muted); }
+h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
+
+/* A code cell: code, then outputs */
 .cell { margin: 1rem 0 1.5rem; }
-details.code summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-size: 0.85rem;
-  user-select: none;
+details.code summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; user-select: none; }
+.highlight, pre.output, .editor textarea {
+  font: 0.85rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-details.code .highlight, pre.output {
-  overflow-x: auto;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
-details.code .highlight { margin-top: 0.5rem; }
-details.code .highlight pre { margin: 0; }
-pre.output { background: transparent; border-left: 3px solid var(--muted); border-radius: 0; }
-.plot { width: 100%; }
+.highlight { margin-top: 0.5rem; padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; }
+.highlight pre { margin: 0; font: inherit; }
 .outputs:not(:empty) { margin-top: 0.75rem; }
-.figure img, .figure svg { max-width: 100%; height: auto; }
-.note { color: var(--muted); font-style: italic; }
+pre.output { padding: 0 1rem; border-left: 3px solid var(--muted); overflow-x: auto; }
+pre.output.error { border-left-color: var(--error); color: var(--error); }
+.plot { width: 100%; }
 
-/* Live (slider) blocks */
-.live .controls, .params .controls {
+/* Sliders (# @interact) */
+.sliders {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1.5rem;
-  margin-bottom: 0.25rem;
   font-size: 0.9rem;
 }
 .control { display: inline-flex; align-items: center; gap: 0.5rem; }
-.control input[type=range] { width: 10rem; accent-color: var(--link); }
-.control output { min-width: 3ch; font-variant-numeric: tabular-nums; color: var(--muted); }
-.status { display: none; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.8rem; }
-.live.loading .status, .live.failed .status,
-.params.loading .status, .params.failed .status { display: inline-flex; }
-.live.loading .control, .params.loading .control { opacity: 0.5; }
-.spinner {
-  width: 0.8rem; height: 0.8rem;
-  border: 2px solid var(--muted);
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.anchor-link { visibility: hidden; text-decoration: none; margin-left: 0.3rem; color: var(--muted); }
-h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
+.control input { width: 10rem; accent-color: var(--link); }
+.control output { min-width: 3ch; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Editable cells (# page:edit) */
-.editor {
-  border: 1px solid var(--muted);
-  border-radius: 6px;
-  overflow: hidden;
-}
+.editor { border: 1px solid var(--muted); border-radius: 6px; overflow: hidden; }
 .editor textarea {
   display: block;
   width: 100%;
-  border: 0;
   padding: 0.75rem 1rem;
+  border: 0;
   resize: none;
   overflow: hidden;
   background: transparent;
   color: var(--text);
-  font: 0.85rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   tab-size: 4;
   outline: none;
 }
-.editor-bar {
+.editor .bar {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -155,7 +94,7 @@ h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
   border-top: 1px solid var(--muted);
   font-size: 0.8rem;
 }
-.editor-bar button {
+.editor button {
   font: inherit;
   padding: 0.2rem 0.8rem;
   border: 1px solid var(--link);
@@ -164,11 +103,21 @@ h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
   color: var(--link);
   cursor: pointer;
 }
-.editor-bar button:hover:not(:disabled) { background: var(--link); color: var(--bg); }
-.editor-bar button:disabled { opacity: 0.5; cursor: default; }
-.editor-bar .hint { color: var(--muted); margin-left: auto; }
-.editor.loading .status, .editor.failed .status { display: inline-flex; }
-.editor.loading .hint, .editor.failed .hint { display: none; }
-pre.output.error { border-left-color: #d33; color: #d33; }
+.editor button:hover:not(:disabled) { background: var(--link); color: var(--bg); }
+.editor button:disabled { opacity: 0.5; cursor: default; }
+.editor .hint { margin-left: auto; color: var(--muted); }
 
-.control input[type=number] { width: 6rem; font: inherit; }
+/* "Loading Python" spinner, shown until sliders and editors work */
+.status { display: none; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.8rem; }
+.loading .status, .failed .status { display: inline-flex; }
+.loading .hint, .failed .hint { display: none; }
+.sliders.loading .control { opacity: 0.5; }
+.spinner {
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid var(--muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
