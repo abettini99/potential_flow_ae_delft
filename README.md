@@ -16,7 +16,7 @@ Both are built from `content/potential_flow.ipynb` by `.github/workflows/deploy.
 - Code is shown on the page by default. Put one of these on a cell's first line to change that:
   - `# page:hide`: the cell runs but its code isn't shown (its output and sliders still are).
   - `# page:fold`: the code is folded behind a "Code" toggle.
-  - `# page:edit rerun=2`: as below, and Run also reruns the next 2 code cells (hidden ones count) so their plots and sliders update. Use it when later cells depend on values set in the editable cell.
+  - `# page:edit rerun=2`: as below, and Run also reruns the next 2 code cells (hidden ones count) so their plots and sliders update. `rerun=all` reruns every code cell below. Use it when later cells depend on values set in the editable cell.
   - `# page:edit`: readers can edit the code and press Run (or Shift+Enter) on the page itself. It runs in the same Python session as the rest of the page, so it can use everything defined above it, and a redefined function is picked up by sliders that look it up by name.
 - Notebook tags still work: `remove-cell` hides a cell completely (code and output), `remove-input` is the same as `# page:hide`. Colab's ⋮ > Form > Hide code also counts as hide.
 - Packages: anything Pyodide ships (numpy, scipy, ...) loads automatically from the imports; plotly is installed on the fly.

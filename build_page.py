@@ -11,7 +11,8 @@ Code is shown by default. A first line "# page:<word>" changes that:
   # page:fold   show the code folded behind a "Code" toggle
   # page:edit   readers can edit the code and run it on the page
   # page:edit rerun=2   ...and Run also reruns the next 2 code cells below it
-                        (hidden cells count), so their plots update
+                        (hidden cells count), so their plots update;
+                        rerun=all reruns every code cell below
 Notebook tags still work: remove-cell (show nothing), remove-input (= hide).
 Colab's "Hide code" counts as hide.
 
@@ -90,11 +91,13 @@ def page_marks(src):
 def rerun_count(marks):
     """N from "rerun=N": how many code cells below an edit cell run again after it."""
     for m in marks:
+        if m == "rerun=all":
+            return 1_000_000  # every code cell below
         if m.startswith("rerun="):
             try:
                 return max(0, int(m[len("rerun="):]))
             except ValueError:
-                raise SystemExit(f"'# page:edit {m}': rerun needs a whole number, like rerun=2")
+                raise SystemExit(f"'# page:edit {m}': rerun needs a whole number or 'all', like rerun=2")
     return 0
 
 
