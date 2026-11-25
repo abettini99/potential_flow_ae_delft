@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Required by JupyterLite: its apps read this to find the site root. Do not remove. -->
+  <script id="jupyter-config-data" type="application/json" data-jupyter-lite-root=".">{}</script>
+  <script>window.MathJax = { tex: { inlineMath: [["$", "$"], ["\\(", "\\)"]] } };</script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  <script src="https://cdn.plot.ly/plotly-{{plotly_js}}.min.js"></script>
+  <script defer src="{{pyodide}}pyodide.js"></script>
+  <script id="page-config" type="application/json">{{config}}</script>
+  <script defer src="page.js"></script>
+</head>
+<body>
+  <main>
+    <p class="back"><a href="https://abettini99.github.io/">&larr; Home</a></p>
+{{body}}
+  </main>
+  <footer>
+    <p><a href="https://github.com/abettini99/potential_flow_ae_delft">Source on GitHub</a></p>
+  </footer>
+</body>
+</html>

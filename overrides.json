@@ -1,0 +1,9 @@
+{
+  "@jupyterlab/apputils-extension:themes": {
+    "theme": "JupyterLab Light",
+    "overrides": {
+      "ui-font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+      "content-font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+    }
+  }
+}

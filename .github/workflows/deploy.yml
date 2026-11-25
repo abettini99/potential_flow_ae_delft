@@ -25,6 +25,10 @@ jobs:
         run: |
           cp README.md content
           jupyter lite build --contents content --output-dir dist
+      - name: Build the web page from the notebook
+        run: |
+          # Replaces JupyterLite's redirect page at the site root
+          python build_page.py dist/index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
