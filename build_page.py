@@ -16,6 +16,10 @@ What readers see is set by comments in a code cell. On its first line:
   # page:edit rerun=2          ...Run also reruns the next 2 code cells
   # rerun=2                    for a cell with sliders: rerun only the next 2
                                cells when a slider moves (default: all below)
+Anywhere in a cell (the hidden code still runs):
+  # page:hide-from             hide the code from here...
+  # page:hide-to               ...to here; without a hide-to, hiding goes on
+                               into the next cells until one has a hide-to
 Anywhere in a cell, a slider for the variable on the next line:
   # page:slider (0.5, 5.0, 0.1)
   Vinf = 1                     (min, max, step); the value is where it starts
@@ -87,6 +91,21 @@ def read_sliders(src):
     return sliders
 
 
+def shown_code(src, hiding):
+    """The cell's code without the lines between "# page:hide-from" and "# page:hide-to".
+    `hiding` says whether a hide-from in an earlier cell is still open; returns (code, hiding)."""
+    shown = []
+    for line in src.splitlines():
+        marker = line.replace(" ", "").strip()
+        if marker == "#page:hide-from":
+            hiding = True
+        elif marker == "#page:hide-to":
+            hiding = False
+        elif not hiding:
+            shown.append(line)
+    return live.clean("\n".join(shown)).strip(), hiding
+
+
 # ---- HTML pieces ---------------------------------------------------------------
 
 LOADING = '<span class="status"><span class="spinner"></span>Loading Python</span>'
@@ -129,6 +148,7 @@ def html_sliders(sliders, rerun):
 def build(nb):
     ns = {"__name__": "__main__"}
     parts, cells, title = [], [], None
+    hiding = False  # inside a "# page:hide-from" that goes on across cells
     for cell in nb.cells:
         if cell.cell_type == "markdown":
             src = cell.source.strip()
@@ -145,13 +165,14 @@ def build(nb):
         opts = read_first_line(cell.source)
         sliders = read_sliders(cell.source)
         outputs = live.run_cell(cell.source, ns, {k: v[3] for k, v in sliders.items()})
-        code = live.clean(cell.source).strip()
+        code, hiding = shown_code(cell.source, hiding)
 
         pieces = []
         if sliders:
             pieces.append(html_sliders(sliders, opts.get("rerun", ALL)))
         if opts.get("edit") and not sliders:  # a cell has sliders or an editor, not both
-            pieces.append(html_editor(code, opts.get("rerun", 0)))
+            # the editor holds all the code, since what's in it is what runs
+            pieces.append(html_editor(live.clean(cell.source).strip(), opts.get("rerun", 0)))
         elif code and not opts.get("hide"):
             pieces.append(html_code(code, folded=opts.get("fold", False)))
         pieces.append(html_outputs(outputs))

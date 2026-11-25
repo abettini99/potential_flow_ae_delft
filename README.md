@@ -23,6 +23,8 @@ Code is shown on the page by default. The first line of a code cell can change t
 | `# page:edit` | code in an editor with a Run button (or Shift+Enter) |
 | `# page:edit rerun=2` | same, and Run also reruns the next 2 code cells (`rerun=all`: every cell below) |
 
+**Hiding part of a cell.** Lines between `# page:hide-from` and `# page:hide-to` are left off the page but still run. Without a `# page:hide-to`, the hiding carries on into the next cells until one has it. (Editable cells always show all their code.)
+
 **Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. Moving a slider puts its value in that line and reruns the cell and every cell below it; `# rerun=2` on the cell's first line reruns only the next 2.
 
 ```python
