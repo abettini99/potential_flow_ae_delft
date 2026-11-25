@@ -6,11 +6,12 @@ The notebook's code is run here first, so the page opens with every plot already
 drawn. The page then loads Python in the browser (Pyodide) and runs the same
 code again, after which the sliders call the notebook's own functions live.
 
-Cell tags control what readers see:
-  remove-cell   run the cell but show nothing (setup, imports)
-  remove-input  show the output only, no "Show code" toggle
-                (same as "Hide code" in Colab, or a first line "# page:hide")
-  show-input    show the code open instead of folded
+Code is shown by default. A first line "# page:<word>" changes that:
+  # page:hide   run the cell but don't show its code (output still shows)
+  # page:fold   show the code folded behind a "Code" toggle
+  # page:edit   readers can edit the code and run it on the page
+Notebook tags still work: remove-cell (show nothing), remove-input (= hide).
+Colab's "Hide code" counts as hide.
 
 Interactive parts are written with ipywidgets.interact and Plotly, see
 page/live.py for what is supported.
@@ -78,6 +79,12 @@ def render_output(out):
     return ""
 
 
+def page_marks(src):
+    """Words from a first line like "# page:edit" (several: "# page:edit fold")."""
+    first = src.lstrip().split("\n", 1)[0].strip().lower().replace("# ", "#", 1)
+    return set(first[len("#page:"):].replace(",", " ").split()) if first.startswith("#page:") else set()
+
+
 def build(nb):
     live.install()
     ns = {"__name__": "__main__"}
@@ -91,16 +98,25 @@ def build(nb):
             if "remove-cell" in tags:
                 continue
             block = []
+            marks = page_marks(cell.source)
             # Colab's "Hide code" (Form menu) stores cellView = "form"
-            # ...or a first line that is just "# page:hide"
-            first = cell.source.lstrip().split("\n", 1)[0].strip().lower()
-            hidden = ("remove-input" in tags or cell.metadata.get("cellView") == "form"
-                      or first.replace(" ", "") == "#page:hide")
-            if cell.source.strip() and not hidden:
-                opened = " open" if "show-input" in tags else ""
-                block.append(f'<details class="code"{opened}><summary>Show code</summary>'
-                             f'{highlight(live.strip_magics(cell.source), lexer, fmt)}</details>')
-            block += [render_output(o) for o in outputs]
+            hidden = ("hide" in marks or "remove-input" in tags
+                      or cell.metadata.get("cellView") == "form")
+            code = live.strip_magics(cell.source)
+            if "edit" in marks:
+                block.append(
+                    f'<div class="editor loading" data-cell="{len(code_cells) - 1}">'
+                    f'<textarea spellcheck="false" rows="{code.count(chr(10)) + 1}" disabled>{html.escape(code)}</textarea>'
+                    '<div class="editor-bar"><button type="button" disabled>Run</button>'
+                    '<span class="status"><span class="spinner"></span>Loading Python</span>'
+                    '<span class="hint">Edit the code, then Run (or Shift+Enter)</span></div></div>')
+            elif code.strip() and not hidden:
+                opened = "" if ("fold" in marks or "hide-input" in tags) else " open"
+                block.append(f'<details class="code"{opened}><summary>Code</summary>'
+                             f'{highlight(code, lexer, fmt)}</details>')
+            rendered = "".join(render_output(o) for o in outputs)
+            if rendered or "edit" in marks:
+                block.append(f'<div class="outputs">{rendered}</div>')
             if any(block):
                 parts.append('<div class="cell">' + "".join(block) + "</div>")
         elif cell.cell_type == "markdown" and "remove-cell" not in tags:

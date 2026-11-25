@@ -96,7 +96,8 @@ details.code .highlight, pre.output {
 details.code .highlight { margin-top: 0.5rem; }
 details.code .highlight pre { margin: 0; }
 pre.output { background: transparent; border-left: 3px solid var(--muted); border-radius: 0; }
-.plot { width: 100%; min-height: 420px; }
+.plot { width: 100%; }
+.outputs:not(:empty) { margin-top: 0.75rem; }
 .figure img, .figure svg { max-width: 100%; height: auto; }
 .note { color: var(--muted); font-style: italic; }
 
@@ -125,3 +126,46 @@ pre.output { background: transparent; border-left: 3px solid var(--muted); borde
 @keyframes spin { to { transform: rotate(360deg); } }
 .anchor-link { visibility: hidden; text-decoration: none; margin-left: 0.3rem; color: var(--muted); }
 h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
+
+/* Editable cells (# page:edit) */
+.editor {
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.editor textarea {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0.75rem 1rem;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text);
+  font: 0.85rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  tab-size: 4;
+  outline: none;
+}
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid var(--muted);
+  font-size: 0.8rem;
+}
+.editor-bar button {
+  font: inherit;
+  padding: 0.2rem 0.8rem;
+  border: 1px solid var(--link);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--link);
+  cursor: pointer;
+}
+.editor-bar button:hover:not(:disabled) { background: var(--link); color: var(--bg); }
+.editor-bar button:disabled { opacity: 0.5; cursor: default; }
+.editor-bar .hint { color: var(--muted); margin-left: auto; }
+.editor.loading .status, .editor.failed .status { display: inline-flex; }
+.editor.loading .hint, .editor.failed .hint { display: none; }
+pre.output.error { border-left-color: #d33; color: #d33; }
