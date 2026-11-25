@@ -25,7 +25,7 @@ Code is shown on the page by default. Marker lines at the top of a code cell cha
 
 **Hiding part of a cell.** Lines between `# page:hide-from` and `# page:hide-to` are left off the page but still run. Without a `# page:hide-to`, it hides to the end of the cell. (Editable cells always show all their code.)
 
-**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. When a slider stops moving (for a quarter of a second), its value goes into that line and the cell reruns, along with every cell below it. `# page:rerun=2` at the top of the cell reruns only the next 2 cells.
+**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. When a slider stops moving (for 0.15 s), its value goes into that line and the cell reruns, along with every cell below it. `# page:rerun=2` at the top of the cell reruns only the next 2 cells.
 
 ```python
 # page:rerun=2
@@ -45,7 +45,7 @@ Three small files in this repo, plus the workflow:
 
 - `build_page.py` reads the notebook, runs every code cell in order, and writes `index.html` with the text, highlighted code and plots already in it. The first-line markers above are read here.
 - `page/live.py` runs one cell and collects what it printed and the Plotly figures it made. The build uses it, and so does the page.
-- `page/page.js` draws the plots, then loads Python in the browser ([Pyodide](https://pyodide.org)) and runs the cells again so that sliders and Run buttons can rerun code. Until that has loaded, sliders and editors show "Loading Python".
+- `page/page.js` draws the plots and runs the sliders and Run buttons. `page/worker.js` runs Python in the browser ([Pyodide](https://pyodide.org)) on a separate thread, so the page never freezes while it calculates; a cell shows "Computing…" meanwhile. Until Python has loaded, sliders and editors show "Loading Python".
 - `page/template.html` and `page/style.css` are the page's frame and look (copied from the homepage).
 
 **New packages.** If the notebook imports a new package (like `scipy`), add it to `requirements.txt` so the build can run the notebook. The page in the browser loads it by itself.

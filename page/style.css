@@ -113,3 +113,19 @@ pre.output.error { border-left-color: var(--error); color: var(--error); }
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* While Python recalculates a cell: dim its outputs and say so */
+.outputs { position: relative; }
+.outputs > * { transition: opacity 0.2s; }
+.computing .outputs > * { opacity: 0.4; }
+.computing .outputs:not(:empty)::after {
+  content: "Computing…";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
