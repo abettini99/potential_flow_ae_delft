@@ -194,8 +194,7 @@ def main(dest="dist/index.html", notebook=NOTEBOOK):
                 .replace("{{config}}", json.dumps(config).replace("</", "<\\/"))
                 .replace("{{body}}", body))
     css = (ROOT / "page" / "style.css").read_text()
-    css += HtmlFormatter(style="friendly").get_style_defs(".highlight")
-    css += "\n@media (prefers-color-scheme: dark) {\n" + HtmlFormatter(style="monokai").get_style_defs(".highlight") + "\n}\n"
+    css += HtmlFormatter(style="monokai").get_style_defs(".highlight")  # code colours, dark
 
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)

@@ -66,8 +66,17 @@ def run_cell(src, ns, sliders=None):
     """Run one cell in namespace `ns` and return its outputs. Errors are raised.
     `sliders` ({"Vinf": 2.5}) replaces the values written under "# page:slider" lines."""
     global _outputs
+    import plotly.graph_objects as go
+    import plotly.io as pio
     from plotly.basedatatypes import BaseFigure
     BaseFigure.show = _show
+    # The page is dark: figures default to Plotly's dark look on a see-through
+    # background. Colours a cell sets itself still win.
+    if "page" not in pio.templates:
+        page = go.layout.Template(pio.templates["plotly_dark"])  # a copy
+        page.layout.paper_bgcolor = page.layout.plot_bgcolor = "rgba(0,0,0,0)"
+        pio.templates["page"] = page
+    pio.templates.default = "page"
     # ipywidgets doesn't exist in the browser; the page has its own sliders.
     sys.modules.setdefault("ipywidgets", types.ModuleType("ipywidgets"))
 
