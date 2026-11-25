@@ -120,19 +120,38 @@
 
   // ---- editable cells -----------------------------------------------------
 
+  // Run code and show its outputs in `box` (or nowhere for hidden cells); false on error.
+  function runInto(box, src, ns) {
+    var outs;
+    try {
+      outs = JSON.parse(live.run_cell_json(src, ns));
+    } catch (e) {
+      outs = [{ type: "error", text: String(e) }];
+    }
+    if (box) renderOutputs(box, outs);
+    return !outs.some(function (o) { return o.type === "error"; });
+  }
+
   function enableEditor(ed, ns) {
     var area = ed.querySelector("textarea");
     var button = ed.querySelector("button");
     var outputs = ed.parentNode.querySelector(".outputs");
+    var index = Number(ed.parentNode.dataset.cell);
+    var rerun = Number(ed.dataset.rerun || 0);
     function fit() { area.style.height = "auto"; area.style.height = area.scrollHeight + "px"; }
     function run() {
       button.disabled = true;
       button.textContent = "Running…";
       requestAnimationFrame(function () {
-        try {
-          renderOutputs(outputs, JSON.parse(live.run_cell_json(area.value, ns)));
-        } catch (e) {
-          renderOutputs(outputs, [{ type: "error", text: String(e) }]);
+        var ok = runInto(outputs, area.value, ns);
+        // "# page:edit rerun=N": run the next N code cells again so they pick up the change
+        for (var i = index + 1; ok && i <= index + rerun && i < config.cells.length; i++) {
+          var cell = document.querySelector('.cell[data-cell="' + i + '"]');
+          var editor = cell && cell.querySelector(".editor textarea");
+          var src = editor ? editor.value : config.cells[i];
+          var box = cell && cell.querySelector(".outputs");
+          if (!box && cell) { box = el("div", "outputs"); cell.appendChild(box); }
+          ok = runInto(box, src, ns);
         }
         button.disabled = false;
         button.textContent = "Run";

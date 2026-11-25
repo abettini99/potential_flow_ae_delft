@@ -10,6 +10,8 @@ Code is shown by default. A first line "# page:<word>" changes that:
   # page:hide   run the cell but don't show its code (output still shows)
   # page:fold   show the code folded behind a "Code" toggle
   # page:edit   readers can edit the code and run it on the page
+  # page:edit rerun=2   ...and Run also reruns the next 2 code cells below it
+                        (hidden cells count), so their plots update
 Notebook tags still work: remove-cell (show nothing), remove-input (= hide).
 Colab's "Hide code" counts as hide.
 
@@ -85,6 +87,17 @@ def page_marks(src):
     return set(first[len("#page:"):].replace(",", " ").split()) if first.startswith("#page:") else set()
 
 
+def rerun_count(marks):
+    """N from "rerun=N": how many code cells below an edit cell run again after it."""
+    for m in marks:
+        if m.startswith("rerun="):
+            try:
+                return max(0, int(m[len("rerun="):]))
+            except ValueError:
+                raise SystemExit(f"'# page:edit {m}': rerun needs a whole number, like rerun=2")
+    return 0
+
+
 def build(nb):
     live.install()
     ns = {"__name__": "__main__"}
@@ -105,7 +118,7 @@ def build(nb):
             code = live.strip_magics(cell.source)
             if "edit" in marks:
                 block.append(
-                    f'<div class="editor loading" data-cell="{len(code_cells) - 1}">'
+                    f'<div class="editor loading" data-rerun="{rerun_count(marks)}">'
                     f'<textarea spellcheck="false" rows="{code.count(chr(10)) + 1}" disabled>{html.escape(code)}</textarea>'
                     '<div class="editor-bar"><button type="button" disabled>Run</button>'
                     '<span class="status"><span class="spinner"></span>Loading Python</span>'
@@ -118,7 +131,7 @@ def build(nb):
             if rendered or "edit" in marks:
                 block.append(f'<div class="outputs">{rendered}</div>')
             if any(block):
-                parts.append('<div class="cell">' + "".join(block) + "</div>")
+                parts.append(f'<div class="cell" data-cell="{len(code_cells) - 1}">' + "".join(block) + "</div>")
         elif cell.cell_type == "markdown" and "remove-cell" not in tags:
             src = cell.source.lstrip()
             if title is None and src.startswith("# "):
