@@ -5,7 +5,7 @@
 How it works:
   1. Every code cell is run here, in order (page/live.py), so the page opens
      with all text, maths and plots already in place.
-  2. The page (page/page.js) then loads Python in the browser and runs the same
+  2. The page (page/page.js, page/worker.js) then loads Python in the browser and runs the same
      cells again, so sliders and editable cells can rerun code live.
 
 What readers see is set by comments in a code cell. At its top (several can be stacked):
@@ -190,7 +190,6 @@ def main(dest="dist/index.html", notebook=NOTEBOOK):
     page = (ROOT / "page" / "template.html").read_text()
     page = (page.replace("{{title}}", html.escape(title))
                 .replace("{{plotly_js}}", plotly.offline.get_plotlyjs_version())
-                .replace("{{pyodide}}", config["pyodide"])
                 .replace("{{config}}", json.dumps(config).replace("</", "<\\/"))
                 .replace("{{body}}", body))
     css = (ROOT / "page" / "style.css").read_text()
@@ -200,7 +199,8 @@ def main(dest="dist/index.html", notebook=NOTEBOOK):
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(page)
     (dest.parent / "style.css").write_text(css)
-    (dest.parent / "page.js").write_text((ROOT / "page" / "page.js").read_text())
+    for name in ("page.js", "worker.js"):
+        (dest.parent / name).write_text((ROOT / "page" / name).read_text())
 
 
 if __name__ == "__main__":
