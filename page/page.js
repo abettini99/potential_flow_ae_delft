@@ -108,6 +108,9 @@
         clearTimeout(timer);
         timer = setTimeout(function () { rerun(i, Number(block.dataset.rerun)); }, WAIT);
       });
+      // Let go of the slider after dragging it, so the browser has no reason to
+      // scroll back to it (Firefox) when the outputs update.
+      s.addEventListener("pointerup", function () { s.blur(); });
     });
     block.classList.remove("loading");
   }
