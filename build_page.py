@@ -14,7 +14,7 @@ What readers see is set by comments in a code cell. On its first line:
   # page:fold                  code folded behind a "Code" toggle
   # page:edit                  code in an editor with a Run button
   # page:edit rerun=2          ...Run also reruns the next 2 code cells
-  # rerun=2                    for a cell with sliders: rerun only the next 2
+  # page:rerun=2               for a cell with sliders: rerun only the next 2
                                cells when a slider moves (default: all below)
 Anywhere in a cell (the hidden code still runs):
   # page:hide-from             hide the code from here...

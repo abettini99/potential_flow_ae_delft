@@ -25,10 +25,10 @@ Code is shown on the page by default. The first line of a code cell can change t
 
 **Hiding part of a cell.** Lines between `# page:hide-from` and `# page:hide-to` are left off the page but still run. Without a `# page:hide-to`, it hides to the end of the cell. (Editable cells always show all their code.)
 
-**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. Moving a slider puts its value in that line and reruns the cell and every cell below it; `# rerun=2` on the cell's first line reruns only the next 2.
+**Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. Moving a slider puts its value in that line and reruns the cell and every cell below it; `# page:rerun=2` on the cell's first line reruns only the next 2.
 
 ```python
-# rerun=2
+# page:rerun=2
 
 # page:slider (0.5, 5.0, 0.1)
 Vinf = 1
