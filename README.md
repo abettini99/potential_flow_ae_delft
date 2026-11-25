@@ -13,7 +13,7 @@ Both are built from `content/potential_flow.ipynb` by `.github/workflows/deploy.
 
 - Interactive parts: use `ipywidgets.interact` (or `@interact`) with `FloatSlider`, `IntSlider`, `Dropdown`, `Checkbox` or the `(min, max, step)` shorthand, and have the function `return` a Plotly figure or call `fig.show()`. The same code works in JupyterLite and on the page.
 - Plots: use Plotly (`plotly.graph_objects`). Matplotlib output is not carried over to the page.
-- Hiding code: on the page, code is folded behind "Show code". To hide a cell's code completely, make `# hide` its first line (or use Colab's ⋮ > Form > Hide code, or tag it `remove-input`). The cell still runs; a hidden cell without output disappears from the page.
+- Hiding code: on the page, code is folded behind "Show code". To hide a cell's code completely, make `# page:hide` its first line (or use Colab's ⋮ > Form > Hide code, or tag it `remove-input`). The cell still runs; a hidden cell without output disappears from the page.
 - Cell tags (View > Cell toolbar > Tags in Jupyter): `remove-cell` runs a cell without showing it (setup, imports), `remove-input` shows only the output, `show-input` shows the code unfolded. Code is folded behind "Show code" by default.
 - Packages: anything Pyodide ships (numpy, scipy, ...) loads automatically from the imports; plotly is installed on the fly.
 
