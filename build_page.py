@@ -22,6 +22,9 @@ Anywhere in a cell (the hidden code still runs):
 Anywhere in a cell, a slider for the variable on the next line:
   # page:slider (0.5, 5.0, 0.1)
   Vinf = 1                     (min, max, step); the value is where it starts
+Headings fold: a markdown heading (## ...) folds everything below it, up to the
+next heading of the same or a higher level. Sections start open; put
+<!-- page:closed --> in the heading's cell to start it folded.
 Outputs are anything printed and Plotly figures (fig.show() or a figure on the
 last line).
 """
@@ -145,16 +148,39 @@ def html_sliders(sliders, rerun):
 
 # ---- the page ------------------------------------------------------------------
 
+HEADING_RE = re.compile(r"(#{1,6})\s+\S.*")
+CLOSED = "<!-- page:closed -->"  # in a heading's markdown cell: its section starts folded
+
+
 def build(nb):
     ns = {"__name__": "__main__"}
     parts, cells, title = [], [], None
+    # Like Colab, each heading (after the title) folds everything below it up to
+    # the next heading of the same or a higher level: text, code, sliders, plots.
+    levels = []  # the heading levels of the sections we're inside
+
+    def close_sections(level):
+        while levels and levels[-1] >= level:
+            parts.append("</div></details>")
+            levels.pop()
+
     for cell in nb.cells:
         if cell.cell_type == "markdown":
             src = cell.source.strip()
+            first, _, rest = src.partition("\n")
             if title is None and src.startswith("# "):  # the notebook's title
-                title, _, rest = src[2:].partition("\n")
+                title = first[2:]
                 parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown2html_mistune(rest)}</header>"
                              f'<p><a class="button" href="{NOTEBOOK_URL}">Open as notebook</a></p>')
+            elif m := HEADING_RE.fullmatch(first.strip()):  # a new section
+                level = len(m.group(1))
+                close_sections(level)
+                levels.append(level)
+                is_open = "" if CLOSED in src else " open"
+                parts.append(f'<details class="section"{is_open}><summary>{markdown2html_mistune(first)}</summary>'
+                             '<div class="section-body">')
+                if rest.replace(CLOSED, "").strip():
+                    parts.append(f"<section>{markdown2html_mistune(rest.replace(CLOSED, ''))}</section>")
             else:
                 parts.append(f"<section>{markdown2html_mistune(src)}</section>")
             continue
@@ -176,6 +202,7 @@ def build(nb):
             pieces.append(html_code(code, folded=opts.get("fold", False)))
         pieces.append(html_outputs(outputs))
         parts.append(f'<div class="cell" data-cell="{index}">{"".join(pieces)}</div>')
+    close_sections(0)
     return title or "Potential flow", "\n".join(parts), cells
 
 
