@@ -14,7 +14,7 @@
   function draw(div, fig) {
     var layout = Object.assign({}, fig.layout, { autosize: true });
     delete layout.width; // fit the page instead
-    return Plotly.react(div, fig.data, layout, { responsive: true, displaylogo: false });
+    return Plotly.react(div, fig.data, layout, { responsive: true, displayModeBar: false }); // no buttons in the corner
   }
 
   function pre(cls, text) {
