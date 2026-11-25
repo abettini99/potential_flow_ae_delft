@@ -102,7 +102,7 @@ pre.output { background: transparent; border-left: 3px solid var(--muted); borde
 .note { color: var(--muted); font-style: italic; }
 
 /* Live (slider) blocks */
-.live .controls {
+.live .controls, .params .controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -114,8 +114,9 @@ pre.output { background: transparent; border-left: 3px solid var(--muted); borde
 .control input[type=range] { width: 10rem; accent-color: var(--link); }
 .control output { min-width: 3ch; font-variant-numeric: tabular-nums; color: var(--muted); }
 .status { display: none; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.8rem; }
-.live.loading .status, .live.failed .status { display: inline-flex; }
-.live.loading .control { opacity: 0.5; }
+.live.loading .status, .live.failed .status,
+.params.loading .status, .params.failed .status { display: inline-flex; }
+.live.loading .control, .params.loading .control { opacity: 0.5; }
 .spinner {
   width: 0.8rem; height: 0.8rem;
   border: 2px solid var(--muted);
@@ -169,3 +170,5 @@ h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
 .editor.loading .status, .editor.failed .status { display: inline-flex; }
 .editor.loading .hint, .editor.failed .hint { display: none; }
 pre.output.error { border-left-color: #d33; color: #d33; }
+
+.control input[type=number] { width: 6rem; font: inherit; }

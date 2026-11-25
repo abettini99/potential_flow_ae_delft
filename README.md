@@ -18,6 +18,21 @@ Both are built from `content/potential_flow.ipynb` by `.github/workflows/deploy.
   - `# page:fold`: the code is folded behind a "Code" toggle.
   - `# page:edit rerun=2`: as below, and Run also reruns the next 2 code cells (hidden ones count) so their plots and sliders update. `rerun=all` reruns every code cell below. Use it when later cells depend on values set in the editable cell.
   - `# page:edit`: readers can edit the code and press Run (or Shift+Enter) on the page itself. It runs in the same Python session as the rest of the page, so it can use everything defined above it, and a redefined function is picked up by sliders that look it up by name.
+- Sliders over plain code: make the first line of a cell a comment like
+  ```python
+  # @interact(Vinf=(0.5, 5.0, 0.1), angle=(-30, 30, 1), Lambda=(1, 5, 0.1))
+  phi_1, psi_1 = uniform(Vinf, np.deg2rad(angle))
+  ...
+  ```
+  `(min, max, step)` gives a slider, a list a dropdown, `True`/`False` a checkbox. On the page the sliders appear above the code; moving one sets those variables, reruns this cell and every code cell below (`rerun=2` after the closing parenthesis limits it to the next 2). Each slider starts at the variable's value from an earlier cell (e.g. `Vinf, angle, Lambda = 1, 30, 1`), so define them before this cell; the cell then also runs unchanged in Colab or Jupyter, where the comment is ignored.
+- Sliders for parameters: write each parameter on its own line with Colab's form syntax, for example
+  ```python
+  Vinf = 1.0    # @param {type:"slider", min:0.5, max:5, step:0.1}
+  angle = 30    # @param {type:"slider", min:-90, max:90, step:1}
+  show_vectors = True  # @param {type:"boolean"}
+  shape = "cylinder"   # @param ["cylinder", "oval"]
+  ```
+  It is plain Python (Colab even shows the same sliders). On the page the cell shows only the controls; moving one sets the variable and reruns every code cell below. Add `# page: rerun=2` as the first line to rerun only the next 2. `{type:"number"}` gives a number box.
 - Notebook tags still work: `remove-cell` hides a cell completely (code and output), `remove-input` is the same as `# page:hide`. Colab's ⋮ > Form > Hide code also counts as hide.
 - Packages: anything Pyodide ships (numpy, scipy, ...) loads automatically from the imports; plotly is installed on the fly.
 

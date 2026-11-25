@@ -152,7 +152,7 @@ def strip_magics(src):
     def keep(line):
         s = line.lstrip()
         return not s.startswith(("%", "!", "#@title", "# @title", "#@markdown", "# @markdown",
-                                 "# page:", "#page:"))
+                                 "# page:", "#page:", "# @interact", "#@interact"))
     return "\n".join(l for l in src.splitlines() if keep(l))
 
 
@@ -201,6 +201,13 @@ def run_cell_json(src, ns):
         if o["type"] == "live" and "figure" not in o:
             o["figure"] = call(o["id"], {c["name"]: c["value"] for c in o["controls"]})
     return json.dumps(outs)
+
+
+def set_params(values_json, floats_json, ns):
+    """Page entry point for "# @param" sliders: assign the new values in the notebook's namespace."""
+    floats = set(json.loads(floats_json))
+    for name, value in json.loads(values_json).items():
+        ns[name] = float(value) if name in floats else value
 
 
 def install():

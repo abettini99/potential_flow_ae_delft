@@ -28,36 +28,61 @@
     var v = {};
     block.querySelectorAll(".controls input, .controls select").forEach(function (i) {
       if (i.type === "checkbox") v[i.name] = i.checked;
-      else if (i.type === "range") v[i.name] = Number(i.value);
+      else if (i.type === "range" || i.type === "number") v[i.name] = Number(i.value);
+      else if (i.dataset.choices) v[i.name] = JSON.parse(i.dataset.choices)[Number(i.value)];
       else v[i.name] = i.value;
     });
     return v;
   }
 
-  function wire(block) {
-    var id = Number(block.dataset.live);
-    var plot = block.querySelector(".plot");
+  // Run `fn` now, or once more after the current run if inputs keep coming.
+  function throttled(fn) {
     var busy = false, pending = false;
-    function update() {
+    return function go() {
       if (busy) { pending = true; return; }
       busy = true;
-      requestAnimationFrame(function () { // let the slider repaint first
-        try {
-          draw(plot, JSON.parse(live.call_json(id, JSON.stringify(values(block)))));
-        } catch (e) { console.error(e); }
+      requestAnimationFrame(function () { // let the control repaint first
+        try { fn(); } catch (e) { console.error(e); }
         busy = false;
-        if (pending) { pending = false; update(); }
+        if (pending) { pending = false; go(); }
       });
-    }
+    };
+  }
+
+  function enableControls(block, onChange) {
     block.querySelectorAll(".controls input, .controls select").forEach(function (i) {
       i.disabled = false;
-      i.addEventListener("input", function () {
+      i.addEventListener(i.type === "number" ? "change" : "input", function () {
         var out = i.nextElementSibling;
         if (out && out.tagName === "OUTPUT") out.value = i.value;
-        update();
+        onChange();
       });
     });
     block.classList.remove("loading");
+  }
+
+  function wire(block) {
+    var id = Number(block.dataset.live);
+    var plot = block.querySelector(".plot");
+    enableControls(block, throttled(function () {
+      draw(plot, JSON.parse(live.call_json(id, JSON.stringify(values(block)))));
+    }));
+  }
+
+  // "# @param" sliders: set the variables, then rerun the cells below.
+  function wireParams(block, ns) {
+    var index = Number(block.parentNode.dataset.cell);
+    var rerun = Number(block.dataset.rerun || 0);
+    enableControls(block, throttled(function () {
+      live.set_params(JSON.stringify(values(block)), block.dataset.floats, ns);
+      // "# @interact(...)" cells rerun themselves; "# @param" cells only set values
+      if ("self" in block.dataset) {
+        var cell = block.parentNode, box = cell.querySelector(".outputs");
+        if (!box) { box = el("div", "outputs"); cell.appendChild(box); }
+        if (!runInto(box, config.cells[index], ns)) return;
+      }
+      rerunAfter(index, rerun, ns);
+    }));
   }
 
   // Same markup as render_live() in build_page.py, for blocks made by edited cells.
@@ -78,8 +103,10 @@
         label.appendChild(el("output", null, String(c.value)));
       } else if (c.kind === "dropdown") {
         input = el("select");
-        c.choices.forEach(function (o) {
+        input.dataset.choices = JSON.stringify(c.choices);
+        c.choices.forEach(function (o, k) {
           var opt = el("option", null, String(o));
+          opt.value = k;
           if (o === c.value) opt.selected = true;
           input.appendChild(opt);
         });
@@ -132,6 +159,20 @@
     return !outs.some(function (o) { return o.type === "error"; });
   }
 
+  // Run the next `count` code cells after cell `index` again, so they pick up a change.
+  // Stops at the first error. Param cells only set their values, they aren't rerun.
+  function rerunAfter(index, count, ns) {
+    for (var i = index + 1; i <= index + count && i < config.cells.length; i++) {
+      var cell = document.querySelector('.cell[data-cell="' + i + '"]');
+      if (cell && cell.querySelector(".params")) continue;
+      var editor = cell && cell.querySelector(".editor textarea");
+      var src = editor ? editor.value : config.cells[i];
+      var box = cell && cell.querySelector(".outputs");
+      if (!box && cell) { box = el("div", "outputs"); cell.appendChild(box); }
+      if (!runInto(box, src, ns)) return;
+    }
+  }
+
   function enableEditor(ed, ns) {
     var area = ed.querySelector("textarea");
     var button = ed.querySelector("button");
@@ -143,16 +184,7 @@
       button.disabled = true;
       button.textContent = "Running…";
       requestAnimationFrame(function () {
-        var ok = runInto(outputs, area.value, ns);
-        // "# page:edit rerun=N": run the next N code cells again so they pick up the change
-        for (var i = index + 1; ok && i <= index + rerun && i < config.cells.length; i++) {
-          var cell = document.querySelector('.cell[data-cell="' + i + '"]');
-          var editor = cell && cell.querySelector(".editor textarea");
-          var src = editor ? editor.value : config.cells[i];
-          var box = cell && cell.querySelector(".outputs");
-          if (!box && cell) { box = el("div", "outputs"); cell.appendChild(box); }
-          ok = runInto(box, src, ns);
-        }
+        if (runInto(outputs, area.value, ns)) rerunAfter(index, rerun, ns);
         button.disabled = false;
         button.textContent = "Run";
       });
@@ -186,11 +218,12 @@
 
   var blocks = Array.prototype.slice.call(document.querySelectorAll("[data-live]"));
   var editors = Array.prototype.slice.call(document.querySelectorAll(".editor"));
-  if (!blocks.length && !editors.length) return;
+  var paramBlocks = Array.prototype.slice.call(document.querySelectorAll(".params"));
+  if (!blocks.length && !editors.length && !paramBlocks.length) return;
 
   function fail(err) {
     console.error(err);
-    blocks.concat(editors).forEach(function (b) {
+    blocks.concat(editors, paramBlocks).forEach(function (b) {
       b.classList.remove("loading");
       b.classList.add("failed");
       b.querySelector(".status").innerHTML =
@@ -216,6 +249,7 @@
     config.cells.forEach(function (src) { live.run_cell(src, ns); });
     blocks.forEach(wire);
     editors.forEach(function (ed) { enableEditor(ed, ns); });
+    paramBlocks.forEach(function (b) { wireParams(b, ns); });
   }
 
   window.addEventListener("load", function () {
