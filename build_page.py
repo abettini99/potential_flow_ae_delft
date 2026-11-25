@@ -9,6 +9,7 @@ code again, after which the sliders call the notebook's own functions live.
 Cell tags control what readers see:
   remove-cell   run the cell but show nothing (setup, imports)
   remove-input  show the output only, no "Show code" toggle
+                (same as "Hide code" in Colab, or a first line "# page:hide")
   show-input    show the code open instead of folded
 
 Interactive parts are written with ipywidgets.interact and Plotly, see
@@ -90,7 +91,12 @@ def build(nb):
             if "remove-cell" in tags:
                 continue
             block = []
-            if cell.source.strip() and "remove-input" not in tags:
+            # Colab's "Hide code" (Form menu) stores cellView = "form"
+            # ...or a first line that is just "# page:hide"
+            first = cell.source.lstrip().split("\n", 1)[0].strip().lower()
+            hidden = ("remove-input" in tags or cell.metadata.get("cellView") == "form"
+                      or first.replace(" ", "") == "#page:hide")
+            if cell.source.strip() and not hidden:
                 opened = " open" if "show-input" in tags else ""
                 block.append(f'<details class="code"{opened}><summary>Show code</summary>'
                              f'{highlight(live.strip_magics(cell.source), lexer, fmt)}</details>')
