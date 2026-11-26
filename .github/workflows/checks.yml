@@ -1,0 +1,47 @@
+name: Checks
+
+# The site itself is built on every PR by deploy.yml (without deploying).
+# These two jobs check the notebook the way Colab and Jupyter see it.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  notebook:
+    name: Run the notebook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the dependencies
+        run: |
+          python -m pip install -r requirements.txt ipykernel nbmake
+      - name: Run every cell in a Jupyter kernel
+        # Fails if any cell raises. Outputs are not written back to the file.
+        run: |
+          pytest --nbmake --nbmake-kernel=python3 --nbmake-timeout=600 content/potential_flow.ipynb
+
+  lint:
+    name: Lint the code cells
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ruff
+        # Pinned, so a new ruff release can't start failing PRs by itself.
+        run: |
+          python -m pip install ruff==0.17.6
+      - name: Lint (rules in ruff.toml)
+        run: |
+          ruff check --output-format=github content/

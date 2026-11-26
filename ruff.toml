@@ -1,0 +1,10 @@
+# Lint settings for `ruff check content/` (run on every PR by .github/workflows/checks.yml).
+# Kept to ruff's defaults (pyflakes plus a few pycodestyle errors), which catch
+# unused imports, undefined names and typos without enforcing a code style.
+target-version = "py311"
+extend-include = ["*.ipynb"]
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
+# Notebooks import in later cells and after `%pip install`, which is fine.
+ignore = ["E402"]
