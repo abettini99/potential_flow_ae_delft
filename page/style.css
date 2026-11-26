@@ -19,7 +19,9 @@ body {
   line-height: 1.6;
 }
 
-main, footer { max-width: 760px; margin: 0 auto; padding: 0 1rem; }
+main, footer { max-width: 1440px; margin: 0 auto; padding: 0 1rem; }
+/* Text above the sections keeps a readable line length */
+main > :is(header, section, p, .cell) { max-width: 760px; }
 main { padding-top: 2rem; }
 footer { margin-top: 4rem; padding-bottom: 2rem; color: var(--muted); font-size: 0.9rem; }
 h2 { margin-top: 2.5rem; font-size: 1.5rem; }
@@ -164,3 +166,21 @@ section details > summary > b { font-weight: inherit; }
 .tikz { margin: 1.5rem 0; text-align: center; }
 /* TeX draws at 10pt; zoom so labels match the page's text */
 .tikz svg { zoom: 1.25; max-width: 100%; height: auto; filter: invert(1) hue-rotate(180deg); }
+
+/* Inside a section: text on the left, its code (with sliders and plots) on the
+   right. Each row lines a few markdown cells up with the code cells below them. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 2.5rem;
+  align-items: start;
+}
+.row + .row { border-top: 1px solid #222; padding-top: 0.5rem; }
+.row > .code-col > .cell:first-child { margin-top: 1rem; }
+/* Text with no code beside it: one readable column, centred on the page */
+.row.wide { display: block; max-width: 860px; margin: 0 auto; }
+/* Phones and narrow windows: one column, text then code */
+@media (max-width: 1000px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .row + .row { border-top: 0; padding-top: 0; }
+}
