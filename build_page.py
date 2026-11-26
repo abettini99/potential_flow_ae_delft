@@ -27,7 +27,7 @@ next heading of the same or a higher level. Sections start open; put
 <!-- page:closed --> in the heading's cell to start it folded.
 Inside a section the page has two columns: text (markdown cells) on the left,
 code cells with their sliders and plots on the right, each next to the text
-above it. Text with no code after it spans the full width. On narrow screens
+above it. Text with no code after it sits in one narrower column, centred on the page. On narrow screens
 they stack into one column.
 TikZ diagrams: a ```tikz fenced block in a markdown cell becomes a drawing on
 the page (TikZJax compiles it in the browser). \usetikzlibrary{...} and

@@ -29,7 +29,7 @@ Code is shown on the page by default. Marker lines at the top of a code cell cha
 
 **Folding sections.** Each markdown heading (`## ...`) on the page can be clicked to fold everything below it (text, code, sliders and plots) up to the next heading of the same or a higher level. Sections start open; put `<!-- page:closed -->` in a heading's cell to start it folded.
 
-**Two columns.** Inside a section, text (markdown cells) sits on the left and code (with its sliders and plots) on the right. Each run of markdown cells is lined up with the code cells that follow it, so a new markdown cell after some code starts a new row. Text with no code after it (like the elementary-flow sections) spans the full width. Plots shrink to the column and keep the shape set by `width` and `height` in `update_layout`. Below 1000 px wide (phones, narrow windows) the columns stack: text, then code.
+**Two columns.** Inside a section, text (markdown cells) sits on the left and code (with its sliders and plots) on the right. Each run of markdown cells is lined up with the code cells that follow it, so a new markdown cell after some code starts a new row. Text with no code after it (like the elementary-flow sections) sits in one narrower column, centred on the page. Plots shrink to the column and keep the shape set by `width` and `height` in `update_layout`. Below 1000 px wide (phones, narrow windows) the columns stack: text, then code.
 
 **Sliders.** Put `# page:slider (min, max, step)` above a `name = value` line, anywhere in a cell. The value is where the slider starts. When a slider stops moving (for 0.15 s), its value goes into that line and the cell reruns, along with every cell below it. `# page:rerun=2` at the top of the cell reruns only the next 2 cells.
 
