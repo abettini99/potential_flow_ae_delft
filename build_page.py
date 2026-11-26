@@ -167,6 +167,8 @@ def build(nb):
     for cell in nb.cells:
         if cell.cell_type == "markdown":
             src = cell.source.strip()
+            if CLOSED in src:  # it may be on any line, even above the heading
+                src = src.replace(CLOSED, "").strip() + "\n" + CLOSED
             first, _, rest = src.partition("\n")
             if title is None and src.startswith("# "):  # the notebook's title
                 title = first[2:]
