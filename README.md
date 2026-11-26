@@ -9,6 +9,8 @@ This tool is developed to visualize potential flows in an intuitive interface fo
 
 Every push to `main` rebuilds both from `content/potential_flow.ipynb` (`.github/workflows/deploy.yml`, about a minute).
 
+Every pull request is checked before it merges: the site is built without deploying (`deploy.yml`), and in `.github/workflows/checks.yml` the notebook is run cell by cell in a Jupyter kernel, and the code cells are linted with [ruff](https://docs.astral.sh/ruff/) (rules in `ruff.toml`; run `ruff check content/` locally).
+
 ## Writing the notebook
 
 Make plots with Plotly (`fig.show()`, or a figure on a cell's last line). Printed text shows too.
