@@ -11,8 +11,27 @@
 
   function cellEl(i) { return document.querySelector('.cell[data-cell="' + i + '"]'); }
 
+  // A figure made for a given width and height is drawn at the width of its
+  // column, with its height scaled to match, so it keeps the shape it was made with.
+  function plotHeight(div) {
+    if (!div._shape || !div.clientWidth) return null; // not shaped, or folded away
+    return Math.min(div._height, Math.round(div.clientWidth * div._shape));
+  }
+
+  // After the plot's column changed width (window resized, section opened).
+  function refit(div) {
+    if (!div._fullLayout) return;
+    var height = plotHeight(div);
+    if (height && height !== div._fullLayout.height) Plotly.relayout(div, { height: height });
+    else Plotly.Plots.resize(div);
+  }
+
   function draw(div, fig) {
     var layout = Object.assign({}, fig.layout, { autosize: true });
+    var w = fig.layout && fig.layout.width, h = fig.layout && fig.layout.height;
+    div._shape = w && h ? h / w : null;
+    div._height = h;
+    if (plotHeight(div)) layout.height = plotHeight(div);
     delete layout.width; // fit the page instead
     // fig.show(config=...) in the notebook can change these, e.g. {"displayModeBar": False}
     var config = Object.assign({ responsive: true, displaylogo: false }, fig.config);
@@ -146,8 +165,13 @@
   // Plots in a folded section were drawn without room; size them when it opens.
   document.querySelectorAll("details.section").forEach(function (d) {
     d.addEventListener("toggle", function () {
-      if (d.open) d.querySelectorAll(".plot").forEach(function (p) { if (p._fullLayout) Plotly.Plots.resize(p); });
+      if (d.open) d.querySelectorAll(".plot").forEach(refit);
     });
+  });
+  var resizing = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizing);
+    resizing = setTimeout(function () { document.querySelectorAll(".plot").forEach(refit); }, 100);
   });
 
   var sliders = document.querySelectorAll(".sliders");

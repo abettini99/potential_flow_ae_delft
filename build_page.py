@@ -25,6 +25,9 @@ Anywhere in a cell, a slider for the variable on the next line:
 Headings fold: a markdown heading (## ...) folds everything below it, up to the
 next heading of the same or a higher level. Sections start open; put
 <!-- page:closed --> in the heading's cell to start it folded.
+Inside a section the page has two columns: text (markdown cells) on the left,
+code cells with their sliders and plots on the right, each next to the text
+above it. On narrow screens they stack into one column.
 TikZ diagrams: a ```tikz fenced block in a markdown cell becomes a drawing on
 the page (TikZJax compiles it in the browser). \usetikzlibrary{...} and
 \usepackage{...} lines in the block are picked up; without a \begin{...} the
@@ -204,8 +207,37 @@ def build(nb):
     # Like Colab, each heading (after the title) folds everything below it up to
     # the next heading of the same or a higher level: text, code, sliders, plots.
     levels = []  # the heading levels of the sections we're inside
+    # Inside a section, text and code sit side by side: a row holds some markdown
+    # cells (left) and the code cells that follow them (right).
+    row = None  # {"theory": [...], "code": [...]} while a row is being filled
+
+    def close_row():
+        nonlocal row
+        if row:
+            parts.append('<div class="row"><div class="theory">' + "".join(row["theory"]) +
+                         '</div><div class="code-col">' + "".join(row["code"]) + "</div></div>")
+        row = None
+
+    def add_text(html_text):
+        nonlocal row
+        if not levels:  # above the first section: one column, as before
+            parts.append(html_text)
+            return
+        if row and row["code"]:  # new text after code starts the next row
+            close_row()
+        row = row or {"theory": [], "code": []}
+        row["theory"].append(html_text)
+
+    def add_code(html_cell):
+        nonlocal row
+        if not levels:
+            parts.append(html_cell)
+            return
+        row = row or {"theory": [], "code": []}
+        row["code"].append(html_cell)
 
     def close_sections(level):
+        close_row()
         while levels and levels[-1] >= level:
             parts.append("</div></details>")
             levels.pop()
@@ -228,9 +260,9 @@ def build(nb):
                 parts.append(f'<details class="section"{is_open}><summary>{markdown(first)}</summary>'
                              '<div class="section-body">')
                 if rest.replace(CLOSED, "").strip():
-                    parts.append(f"<section>{markdown(rest.replace(CLOSED, ''))}</section>")
+                    add_text(f"<section>{markdown(rest.replace(CLOSED, ''))}</section>")
             else:
-                parts.append(f"<section>{markdown(src)}</section>")
+                add_text(f"<section>{markdown(src)}</section>")
             continue
 
         index = len(cells)
@@ -249,7 +281,7 @@ def build(nb):
         elif code and not opts.get("hide"):
             pieces.append(html_code(code, folded=opts.get("fold", False)))
         pieces.append(html_outputs(outputs))
-        parts.append(f'<div class="cell" data-cell="{index}">{"".join(pieces)}</div>')
+        add_code(f'<div class="cell" data-cell="{index}">{"".join(pieces)}</div>')
     close_sections(0)
     return title or "Potential flow", "\n".join(parts), cells
 
