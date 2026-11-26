@@ -1,4 +1,4 @@
-"""Turn content/potential_flow.ipynb into the site's front page.
+r"""Turn content/potential_flow.ipynb into the site's front page.
 
     python build_page.py dist/index.html
 
@@ -25,6 +25,10 @@ Anywhere in a cell, a slider for the variable on the next line:
 Headings fold: a markdown heading (## ...) folds everything below it, up to the
 next heading of the same or a higher level. Sections start open; put
 <!-- page:closed --> in the heading's cell to start it folded.
+TikZ diagrams: a ```tikz fenced block in a markdown cell becomes a drawing on
+the page (TikZJax compiles it in the browser). \usetikzlibrary{...} and
+\usepackage{...} lines in the block are picked up; without a \begin{...} the
+code is wrapped in a tikzpicture. Colab shows the code as it is.
 Outputs are anything printed and Plotly figures (fig.show() or a figure on the
 last line).
 """
@@ -49,6 +53,9 @@ import live  # noqa: E402
 NOTEBOOK = ROOT / "content" / "potential_flow.ipynb"
 NOTEBOOK_URL = "notebooks/index.html?path=potential_flow.ipynb"
 PYODIDE_VERSION = "314.0.7"
+TIKZJAX = "https://cdn.jsdelivr.net/npm/@drgrice1/tikzjax@1.0.0-beta24/dist/"
+TIKZ_HEAD = (f'<link rel="stylesheet" href="{TIKZJAX}fonts.css">\n'
+             f'  <script defer src="{TIKZJAX}tikzjax.js"></script>')
 ALL = 1_000_000  # "rerun=all"
 
 
@@ -146,6 +153,45 @@ def html_sliders(sliders, rerun):
     return f'<div class="sliders loading" data-rerun="{rerun}">{rows}{LOADING}</div>'
 
 
+# ---- TikZ diagrams ------------------------------------------------------------
+
+TIKZ_RE = re.compile(r"^```tikz[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
+TIKZ_LIBRARY_RE = re.compile(r"^\s*\\usetikzlibrary\{([^}]*)\}\s*$", re.M)
+TIKZ_PACKAGE_RE = re.compile(r"^\s*\\usepackage(?:\[([^\]]*)\])?\{([^}]*)\}\s*$", re.M)
+
+
+def html_tikz(code):
+    """A ```tikz block as a <script type="text/tikz">, which TikZJax turns into an SVG."""
+    libraries = [lib.strip() for m in TIKZ_LIBRARY_RE.finditer(code) for lib in m.group(1).split(",")]
+    packages = {pkg.strip(): m.group(1) or "" for m in TIKZ_PACKAGE_RE.finditer(code)
+                for pkg in m.group(2).split(",")}
+    code = TIKZ_PACKAGE_RE.sub("", TIKZ_LIBRARY_RE.sub("", code)).strip()
+    if "\\begin{" not in code:
+        code = f"\\begin{{tikzpicture}}\n{code}\n\\end{{tikzpicture}}"
+    if "</script" in code.lower():
+        raise SystemExit("tikz block: it can't contain '</script'")
+    attrs = ""
+    if libraries:
+        attrs += f' data-tikz-libraries="{html.escape(",".join(libraries))}"'
+    if packages:
+        attrs += f' data-tex-packages="{html.escape(json.dumps(packages))}"'
+    return f'<div class="tikz"><script type="text/tikz"{attrs}>\n{code}\n</script></div>'
+
+
+def markdown(src):
+    """Markdown cell text to HTML, with ```tikz blocks as diagrams."""
+    blocks = []
+
+    def stash(m):
+        blocks.append(html_tikz(m.group(1)))
+        return f"\n\nTIKZBLOCK{len(blocks) - 1}\n\n"
+
+    out = markdown2html_mistune(TIKZ_RE.sub(stash, src))
+    for i, block in enumerate(blocks):
+        out = out.replace(f"<p>TIKZBLOCK{i}</p>", block)
+    return out
+
+
 # ---- the page ------------------------------------------------------------------
 
 HEADING_RE = re.compile(r"(#{1,6})\s+\S.*")
@@ -172,19 +218,19 @@ def build(nb):
             first, _, rest = src.partition("\n")
             if title is None and src.startswith("# "):  # the notebook's title
                 title = first[2:]
-                parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown2html_mistune(rest)}</header>"
+                parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown(rest)}</header>"
                              f'<p><a class="button" href="{NOTEBOOK_URL}">Open as notebook</a></p>')
             elif m := HEADING_RE.fullmatch(first.strip()):  # a new section
                 level = len(m.group(1))
                 close_sections(level)
                 levels.append(level)
                 is_open = "" if CLOSED in src else " open"
-                parts.append(f'<details class="section"{is_open}><summary>{markdown2html_mistune(first)}</summary>'
+                parts.append(f'<details class="section"{is_open}><summary>{markdown(first)}</summary>'
                              '<div class="section-body">')
                 if rest.replace(CLOSED, "").strip():
-                    parts.append(f"<section>{markdown2html_mistune(rest.replace(CLOSED, ''))}</section>")
+                    parts.append(f"<section>{markdown(rest.replace(CLOSED, ''))}</section>")
             else:
-                parts.append(f"<section>{markdown2html_mistune(src)}</section>")
+                parts.append(f"<section>{markdown(src)}</section>")
             continue
 
         index = len(cells)
@@ -220,6 +266,7 @@ def main(dest="dist/index.html", notebook=NOTEBOOK):
     page = (page.replace("{{title}}", html.escape(title))
                 .replace("{{plotly_js}}", plotly.offline.get_plotlyjs_version())
                 .replace("{{config}}", json.dumps(config).replace("</", "<\\/"))
+                .replace("{{tikz}}", TIKZ_HEAD if 'type="text/tikz"' in body else "")
                 .replace("{{body}}", body))
     css = (ROOT / "page" / "style.css").read_text()
     css += HtmlFormatter(style="monokai").get_style_defs(".highlight")  # code colours, dark
