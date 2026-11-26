@@ -158,3 +158,9 @@ details.section:has(> summary > h1) { margin-top: 1.5rem; }
 section details > summary { gap: 0.25rem; margin: 0.4rem 0; font-size: 1.5rem; font-weight: bold; line-height: 1.25; }
 section details > summary font { font-size: inherit; }
 section details > summary > b { font-weight: inherit; }
+
+/* TikZ diagrams (```tikz blocks), drawn by TikZJax. It draws black on white, so
+   flip the lightness for the dark page; the hue turn keeps colours the same. */
+.tikz { margin: 1.5rem 0; text-align: center; }
+/* TeX draws at 10pt; zoom so labels match the page's text */
+.tikz svg { zoom: 1.25; max-width: 100%; height: auto; filter: invert(1) hue-rotate(180deg); }

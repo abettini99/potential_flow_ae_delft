@@ -41,6 +41,19 @@ angle = 0
 
 `# page:hide` on a slider cell shows only the sliders. A cell has sliders or an editor, not both. All of these are comments, so the notebook runs unchanged in Colab or Jupyter.
 
+**TikZ diagrams.** A ```` ```tikz ```` block in a markdown cell is drawn as a diagram on the page ([TikZJax](https://github.com/drgrice1/tikzjax) compiles it in the browser, and it is recoloured for the dark page). Colab and JupyterLite show the code as it is.
+
+````markdown
+```tikz
+\usetikzlibrary{arrows.meta}
+\draw[-Stealth] (-2,0) -- (2,0) node[right] {$x$};
+\draw[thick, blue] (0,0) circle (1);
+\draw (0.4,0) arc (0:40:0.4) node[right] {$\theta$};
+```
+````
+
+Write just the drawing commands, or a whole `\begin{tikzpicture}...\end{tikzpicture}`. `\usetikzlibrary{...}` and `\usepackage{...}` lines are picked up (packages available: `amsmath`, `amssymb`, `pgfplots`, `tikz-3dplot`, `tikz-cd` and a few more). The first diagram takes a few seconds; after that the browser caches it.
+
 ## How it works
 
 Three small files in this repo, plus the workflow:
