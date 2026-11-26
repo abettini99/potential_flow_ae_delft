@@ -154,8 +154,12 @@ details.section > summary::before, section details > summary::before {
 }
 details.section[open] > summary::before, section details[open] > summary::before { transform: rotate(90deg); }
 details.section > summary > :is(h1, h2, h3, h4, h5, h6) { margin: 0.4rem 0; line-height: 1.25; }
-details.section > summary > h1 { font-size: 2rem; }
-details.section:has(> summary > h1) { margin-top: 1.5rem; }
+/* Sizes step down: the page title (header h1), then ## categories, then ### sections */
+header h1 { font-size: 2.75rem; line-height: 1.15; margin-bottom: 0.5rem; }
+details.section > summary > h1 { font-size: 2.25rem; }
+details.section > summary > h2 { font-size: 1.85rem; }
+details.section > summary > h3 { font-size: 1.35rem; }
+details.section:has(> summary > :is(h1, h2)) { margin-top: 1.5rem; }
 /* <summary><b><font size="+2">Title</font></b></summary>: sized like a ## heading */
 section details > summary { gap: 0.25rem; margin: 0.4rem 0; font-size: 1.5rem; font-weight: bold; line-height: 1.25; }
 section details > summary font { font-size: inherit; }
