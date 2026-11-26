@@ -177,6 +177,7 @@ section details > summary > b { font-weight: inherit; }
 }
 .row + .row { border-top: 1px solid #222; padding-top: 0.5rem; }
 .row > .code-col > .cell:first-child { margin-top: 1rem; }
+.row.wide { display: block; }  /* text with no code beside it */
 /* Phones and narrow windows: one column, text then code */
 @media (max-width: 1000px) {
   .row { grid-template-columns: minmax(0, 1fr); }

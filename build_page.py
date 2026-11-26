@@ -27,7 +27,8 @@ next heading of the same or a higher level. Sections start open; put
 <!-- page:closed --> in the heading's cell to start it folded.
 Inside a section the page has two columns: text (markdown cells) on the left,
 code cells with their sliders and plots on the right, each next to the text
-above it. On narrow screens they stack into one column.
+above it. Text with no code after it spans the full width. On narrow screens
+they stack into one column.
 TikZ diagrams: a ```tikz fenced block in a markdown cell becomes a drawing on
 the page (TikZJax compiles it in the browser). \usetikzlibrary{...} and
 \usepackage{...} lines in the block are picked up; without a \begin{...} the
@@ -213,7 +214,9 @@ def build(nb):
 
     def close_row():
         nonlocal row
-        if row:
+        if row and not row["code"]:  # text with no code next to it: full width
+            parts.append('<div class="row wide">' + "".join(row["theory"]) + "</div>")
+        elif row:
             parts.append('<div class="row"><div class="theory">' + "".join(row["theory"]) +
                          '</div><div class="code-col">' + "".join(row["code"]) + "</div></div>")
         row = None
