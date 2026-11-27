@@ -33,6 +33,9 @@ TikZ diagrams: a ```tikz fenced block in a markdown cell becomes a drawing on
 the page (TikZJax compiles it in the browser). \usetikzlibrary{...} and
 \usepackage{...} lines in the block are picked up; without a \begin{...} the
 code is wrapped in a tikzpicture. Colab shows the code as it is.
+Citations: [@key] or \cite{key} in a markdown cell, with the entry in
+content/references.bib, becomes a numbered link like [1]; a References section
+is added at the end (see citations.py). Colab shows the key as written.
 Outputs are anything printed and Plotly figures (fig.show() or a figure on the
 last line).
 """
@@ -53,8 +56,10 @@ from pygments.lexers import PythonLexer
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "page"))
 import live  # noqa: E402
+from citations import Citations  # noqa: E402
 
 NOTEBOOK = ROOT / "content" / "potential_flow.ipynb"
+BIBLIOGRAPHY = ROOT / "content" / "references.bib"
 NOTEBOOK_URL = "notebooks/index.html?path=potential_flow.ipynb"
 PYODIDE_VERSION = "314.0.7"
 TIKZJAX = "https://cdn.jsdelivr.net/npm/@drgrice1/tikzjax@1.0.0-beta24/dist/"
@@ -182,15 +187,15 @@ def html_tikz(code):
     return f'<div class="tikz"><script type="text/tikz"{attrs}>\n{code}\n</script></div>'
 
 
-def markdown(src):
-    """Markdown cell text to HTML, with ```tikz blocks as diagrams."""
+def markdown(src, cites):
+    """Markdown cell text to HTML, with ```tikz blocks as diagrams and citations numbered."""
     blocks = []
 
     def stash(m):
         blocks.append(html_tikz(m.group(1)))
         return f"\n\nTIKZBLOCK{len(blocks) - 1}\n\n"
 
-    out = markdown2html_mistune(TIKZ_RE.sub(stash, src))
+    out = markdown2html_mistune(cites.replace(TIKZ_RE.sub(stash, src)))
     for i, block in enumerate(blocks):
         out = out.replace(f"<p>TIKZBLOCK{i}</p>", block)
     return out
@@ -202,8 +207,9 @@ HEADING_RE = re.compile(r"(#{1,6})\s+\S.*")
 CLOSED = "<!-- page:closed -->"  # in a heading's markdown cell: its section starts folded
 
 
-def build(nb):
+def build(nb, bib=BIBLIOGRAPHY):
     ns = {"__name__": "__main__"}
+    cites = Citations(bib)
     parts, cells, title = [], [], None
     # Like Colab, each heading (after the title) folds everything below it up to
     # the next heading of the same or a higher level: text, code, sliders, plots.
@@ -253,19 +259,19 @@ def build(nb):
             first, _, rest = src.partition("\n")
             if title is None and src.startswith("# "):  # the notebook's title
                 title = first[2:]
-                parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown(rest)}</header>"
+                parts.append(f"<header><h1>{html.escape(title)}</h1>{markdown(rest, cites)}</header>"
                              f'<p><a class="button" href="{NOTEBOOK_URL}">Open as notebook</a></p>')
             elif m := HEADING_RE.fullmatch(first.strip()):  # a new section
                 level = len(m.group(1))
                 close_sections(level)
                 levels.append(level)
                 is_open = "" if CLOSED in src else " open"
-                parts.append(f'<details class="section"{is_open}><summary>{markdown(first)}</summary>'
+                parts.append(f'<details class="section"{is_open}><summary>{markdown(first, cites)}</summary>'
                              '<div class="section-body">')
                 if rest.replace(CLOSED, "").strip():
-                    add_text(f"<section>{markdown(rest.replace(CLOSED, ''))}</section>")
+                    add_text(f"<section>{markdown(rest.replace(CLOSED, ''), cites)}</section>")
             else:
-                add_text(f"<section>{markdown(src)}</section>")
+                add_text(f"<section>{markdown(src, cites)}</section>")
             continue
 
         index = len(cells)
@@ -286,6 +292,9 @@ def build(nb):
         pieces.append(html_outputs(outputs))
         add_code(f'<div class="cell" data-cell="{index}">{"".join(pieces)}</div>')
     close_sections(0)
+    if refs := cites.bibliography():  # numbered in order of first citation
+        parts.append('<details class="section references-section" open><summary><h2>References</h2></summary>'
+                     f'<div class="section-body"><div class="row wide">{refs}</div></div></details>')
     return title or "Potential flow", "\n".join(parts), cells
 
 

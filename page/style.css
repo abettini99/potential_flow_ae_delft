@@ -187,3 +187,11 @@ section details > summary > b { font-weight: inherit; }
   .row { grid-template-columns: minmax(0, 1fr); }
   .row + .row { border-top: 0; padding-top: 0; }
 }
+
+/* Citations: [1] in the text links to its entry under References */
+.cite a { text-decoration: none; }
+.cite a:hover { text-decoration: underline; }
+ol.references { list-style: none; padding: 0; margin: 1rem 0; }
+ol.references li { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); margin-bottom: 0.5rem; }
+ol.references .label { color: var(--muted); }
+ol.references li:target { background: #1a2433; border-radius: 4px; }
