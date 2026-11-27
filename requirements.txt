@@ -16,5 +16,6 @@ plotly>=6,<7
 # so every package the notebook imports goes here too. (In the browser, Pyodide
 # loads them by itself from the notebook's imports.)
 nbconvert>=7.16
+pybtex>=0.24   # reads content/references.bib for the citations
 numpy
 scipy

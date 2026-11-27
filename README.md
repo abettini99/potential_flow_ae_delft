@@ -58,6 +58,16 @@ angle = 0
 
 Write just the drawing commands, or a whole `\begin{tikzpicture}...\end{tikzpicture}`. `\usetikzlibrary{...}` and `\usepackage{...}` lines are picked up (packages available: `amsmath`, `amssymb`, `pgfplots`, `tikz-3dplot`, `tikz-cd` and a few more). The first diagram takes a few seconds; after that the browser caches it.
 
+**Citations.** Put the entry in `content/references.bib` and cite it in a markdown cell by its key, pandoc style or LaTeX style:
+
+| In the cell | On the page |
+|---|---|
+| `[@anderson2017]` or `\cite{anderson2017}` | [1] |
+| `[@anderson2017, p. 12]` or `\cite[p.~12]{anderson2017}` | [1, p. 12] |
+| `[@a; @b; @c]` or `\cite{a,b,c}` | [1–3] |
+
+The numbers link to a References section added at the end of the page (hover one to see the reference). It follows biblatex's `numeric-comp` style with `sorting=none` (numbered in order of first citation), three authors at most before "et al.", DOIs shown as links, and no ISBNs. A key that isn't in the .bib file stops the build. Colab and JupyterLite show the citation as written.
+
 ## How it works
 
 Three small files in this repo, plus the workflow:
@@ -65,6 +75,7 @@ Three small files in this repo, plus the workflow:
 - `build_page.py` reads the notebook, runs every code cell in order, and writes `index.html` with the text, highlighted code and plots already in it. The first-line markers above are read here.
 - `page/live.py` runs one cell and collects what it printed and the Plotly figures it made. The build uses it, and so does the page.
 - `page/page.js` draws the plots and runs the sliders and Run buttons. `page/worker.js` runs Python in the browser ([Pyodide](https://pyodide.org)) on a separate thread, so the page never freezes while it calculates; a cell shows "Computing…" meanwhile. Until Python has loaded, sliders and editors show "Loading Python".
+- `citations.py` numbers the citations and writes the References list from `content/references.bib`.
 - `page/template.html` and `page/style.css` are the page's frame and look (copied from the homepage).
 
 **New packages.** If the notebook imports a new package (like `scipy`), add it to `requirements.txt` so the build can run the notebook. The page in the browser loads it by itself.
