@@ -293,8 +293,8 @@ def build(nb, bib=BIBLIOGRAPHY):
         add_code(f'<div class="cell" data-cell="{index}">{"".join(pieces)}</div>')
     close_sections(0)
     if refs := cites.bibliography():  # numbered in order of first citation
-        parts.append('<details class="section references-section" open><summary><h2>References</h2></summary>'
-                     f'<div class="section-body"><div class="row wide">{refs}</div></div></details>')
+        # always open: a plain heading, no fold toggle
+        parts.append(f'<div class="references-section"><h2>References</h2><div class="row wide">{refs}</div></div>')
     return title or "Potential flow", "\n".join(parts), cells
 
 
