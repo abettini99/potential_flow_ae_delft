@@ -170,6 +170,17 @@ section details > summary > b { font-weight: inherit; }
 /* TeX draws at 10pt; zoom so labels match the page's text */
 .tikz svg { zoom: 1.25; max-width: 100%; height: auto; filter: invert(1) hue-rotate(180deg); }
 
+/* [words](#name) pointing at a named diagram: dotted underline, and on hover
+   a popup with a copy of the drawing (page.js) */
+a.fig-ref { color: inherit; text-decoration: underline dotted var(--link); text-underline-offset: 3px; }
+.fig-popup {
+  position: fixed; z-index: 20; pointer-events: none;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 0.75rem; background: var(--bg); border: 1px solid #333; border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.fig-popup svg { display: block; zoom: 1.25; max-width: 100%; height: auto; filter: invert(1) hue-rotate(180deg); }
+
 /* Inside a section: text on the left, its code (with sliders and plots) on the
    right. Each row lines a few markdown cells up with the code cells below them. */
 .row {

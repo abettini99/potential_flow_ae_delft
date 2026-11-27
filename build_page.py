@@ -33,6 +33,9 @@ TikZ diagrams: a ```tikz fenced block in a markdown cell becomes a drawing on
 the page (TikZJax compiles it in the browser). \usetikzlibrary{...} and
 \usepackage{...} lines in the block are picked up; without a \begin{...} the
 code is wrapped in a tikzpicture. Colab shows the code as it is.
+Give a diagram a name with ```tikz {#name}; a link to it, [some words](#name),
+then shows the diagram in a small popup when the reader hovers over the words
+(and jumps to it when clicked). Colab shows a plain link.
 Citations: [@key] or \cite{key} in a markdown cell, with the entry in
 content/references.bib, becomes a numbered link like [1]; a References section
 is added at the end (see citations.py). Colab shows the key as written.
@@ -164,13 +167,14 @@ def html_sliders(sliders, rerun):
 
 # ---- TikZ diagrams ------------------------------------------------------------
 
-TIKZ_RE = re.compile(r"^```tikz[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
+TIKZ_RE = re.compile(r"^```tikz[ \t]*(?:\{#([A-Za-z][\w-]*)\})?[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
 TIKZ_LIBRARY_RE = re.compile(r"^\s*\\usetikzlibrary\{([^}]*)\}\s*$", re.M)
 TIKZ_PACKAGE_RE = re.compile(r"^\s*\\usepackage(?:\[([^\]]*)\])?\{([^}]*)\}\s*$", re.M)
 
 
-def html_tikz(code):
-    """A ```tikz block as a <script type="text/tikz">, which TikZJax turns into an SVG."""
+def html_tikz(code, name=None):
+    """A ```tikz block as a <script type="text/tikz">, which TikZJax turns into an SVG.
+    A named block ({#name}) gets that id, so [words](#name) can point at it."""
     libraries = [lib.strip() for m in TIKZ_LIBRARY_RE.finditer(code) for lib in m.group(1).split(",")]
     packages = {pkg.strip(): m.group(1) or "" for m in TIKZ_PACKAGE_RE.finditer(code)
                 for pkg in m.group(2).split(",")}
@@ -184,7 +188,8 @@ def html_tikz(code):
         attrs += f' data-tikz-libraries="{html.escape(",".join(libraries))}"'
     if packages:
         attrs += f' data-tex-packages="{html.escape(json.dumps(packages))}"'
-    return f'<div class="tikz"><script type="text/tikz"{attrs}>\n{code}\n</script></div>'
+    div_id = f' id="{name}"' if name else ""
+    return f'<div class="tikz"{div_id}><script type="text/tikz"{attrs}>\n{code}\n</script></div>'
 
 
 def markdown(src, cites):
@@ -192,7 +197,7 @@ def markdown(src, cites):
     blocks = []
 
     def stash(m):
-        blocks.append(html_tikz(m.group(1)))
+        blocks.append(html_tikz(m.group(2), m.group(1)))
         return f"\n\nTIKZBLOCK{len(blocks) - 1}\n\n"
 
     out = markdown2html_mistune(cites.replace(TIKZ_RE.sub(stash, src)))

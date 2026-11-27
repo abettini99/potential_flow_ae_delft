@@ -58,6 +58,8 @@ angle = 0
 
 Write just the drawing commands, or a whole `\begin{tikzpicture}...\end{tikzpicture}`. `\usetikzlibrary{...}` and `\usepackage{...}` lines are picked up (packages available: `amsmath`, `amssymb`, `pgfplots`, `tikz-3dplot`, `tikz-cd` and a few more). The first diagram takes a few seconds; after that the browser caches it.
 
+To point back at a diagram, name it with ```` ```tikz {#name} ```` and link some words to it: `[as drawn earlier](#name)`. On the page, hovering over the words shows the diagram in a small popup, and clicking jumps to it. Colab shows a plain link.
+
 **Citations.** Put the entry in `content/references.bib` and cite it in a markdown cell by its key, pandoc style or LaTeX style:
 
 | In the cell | On the page |
