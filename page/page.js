@@ -174,6 +174,41 @@
     resizing = setTimeout(function () { document.querySelectorAll(".plot").forEach(refit); }, 100);
   });
 
+  // [words](#name) pointing at a named TikZ diagram: hovering the words (or
+  // focusing the link) shows a copy of the drawing next to them.
+  var figPopup = null;
+  function hideFigure() { if (figPopup) { figPopup.remove(); figPopup = null; } }
+  function showFigure(link, fig) {
+    hideFigure();
+    var svg = fig.querySelector("svg");
+    if (!svg) return; // TikZJax hasn't drawn it yet
+    figPopup = document.createElement("div");
+    figPopup.className = "fig-popup";
+    figPopup.appendChild(svg.cloneNode(true));
+    document.body.appendChild(figPopup);
+    // below the words if it fits, otherwise above; kept inside the window
+    var r = link.getBoundingClientRect(), p = figPopup.getBoundingClientRect(), gap = 8;
+    var top = r.bottom + gap + p.height <= window.innerHeight ? r.bottom + gap : r.top - gap - p.height;
+    var left = Math.min(Math.max(gap, r.left + r.width / 2 - p.width / 2), window.innerWidth - p.width - gap);
+    figPopup.style.top = Math.max(gap, top) + "px";
+    figPopup.style.left = Math.max(gap, left) + "px";
+  }
+  document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+    var fig = document.getElementById(decodeURIComponent(link.getAttribute("href").slice(1)));
+    if (!fig || !fig.classList.contains("tikz")) return;
+    link.classList.add("fig-ref");
+    link.addEventListener("mouseenter", function () { showFigure(link, fig); });
+    link.addEventListener("focus", function () { showFigure(link, fig); });
+    link.addEventListener("mouseleave", hideFigure);
+    link.addEventListener("blur", hideFigure);
+    link.addEventListener("click", function () {
+      hideFigure();
+      // the diagram may sit in a folded section: open it first
+      for (var d = fig.closest("details"); d; d = d.parentElement.closest("details")) d.open = true;
+    });
+  });
+  window.addEventListener("scroll", hideFigure, { passive: true });
+
   var sliders = document.querySelectorAll(".sliders");
   var editors = document.querySelectorAll(".editor");
   if (!sliders.length && !editors.length) return; // nothing interactive: no need for Python
