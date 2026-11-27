@@ -38,9 +38,8 @@ a { color: var(--link); }
 }
 .button:hover { background: var(--link); color: var(--bg); }
 
-/* Headings get a ¶ link from the markdown converter; show it on hover only */
-.anchor-link { visibility: hidden; text-decoration: none; margin-left: 0.3rem; color: var(--muted); }
-h2:hover .anchor-link, h3:hover .anchor-link { visibility: visible; }
+/* Headings get a ¶ link from the markdown converter; don't show it */
+.anchor-link { display: none; }
 
 /* A code cell: code, then outputs */
 .cell { margin: 1rem 0 1.5rem; }
