@@ -66,7 +66,7 @@ Write just the drawing commands, or a whole `\begin{tikzpicture}...\end{tikzpict
 | `[@anderson2017, p. 12]` or `\cite[p.~12]{anderson2017}` | [1, p. 12] |
 | `[@a; @b; @c]` or `\cite{a,b,c}` | [1–3] |
 
-The numbers link to a References section added at the end of the page (hover one to see the reference). It follows biblatex's `numeric-comp` style with `sorting=none` (numbered in order of first citation), three authors at most before "et al.", DOIs shown as links, and no ISBNs. A key that isn't in the .bib file stops the build. Colab and JupyterLite show the citation as written.
+The numbers link to a References section at the end of the page, which is always open (it doesn't fold) (hover one to see the reference). It follows biblatex's `numeric-comp` style with `sorting=none` (numbered in order of first citation), three authors at most before "et al.", DOIs shown as links, and no ISBNs. A key that isn't in the .bib file stops the build. Colab and JupyterLite show the citation as written.
 
 ## How it works
 
