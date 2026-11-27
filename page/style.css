@@ -191,10 +191,10 @@ section details > summary > b { font-weight: inherit; }
 /* Citations: [1] in the text links to its entry under References */
 /* References: never folds; the heading lines up with the foldable ## headings */
 .references-section { margin-top: 1.5rem; }
-.references-section > h2 { margin: 0.4rem 0; padding-left: 1.7rem; font-size: 1.85rem; line-height: 1.25; }
+.references-section { padding-left: 1.7rem; }
+.references-section > h2 { margin: 0.4rem 0; font-size: 1.85rem; line-height: 1.25; }
 .cite a { text-decoration: none; }
 .cite a:hover { text-decoration: underline; }
 ol.references { list-style: none; padding: 0; margin: 1rem 0; }
 ol.references li { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); margin-bottom: 0.5rem; }
 ol.references .label { color: var(--muted); }
-ol.references li:target { background: #1a2433; border-radius: 4px; }

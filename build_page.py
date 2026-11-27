@@ -294,7 +294,7 @@ def build(nb, bib=BIBLIOGRAPHY):
     close_sections(0)
     if refs := cites.bibliography():  # numbered in order of first citation
         # always open: a plain heading, no fold toggle
-        parts.append(f'<div class="references-section"><h2>References</h2><div class="row wide">{refs}</div></div>')
+        parts.append(f'<div class="references-section"><h2>References</h2>{refs}</div>')
     return title or "Potential flow", "\n".join(parts), cells
 
 
